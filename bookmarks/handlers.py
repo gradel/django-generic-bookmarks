@@ -1,7 +1,7 @@
 from django.db.models.base import ModelBase
 from django.db.models.signals import pre_delete
 
-from bookmarks import settings, forms, exceptions, signals
+from bookmarks import settings, backends, forms, exceptions, signals
 
 class Handler(object):
     """

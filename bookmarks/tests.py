@@ -3,7 +3,7 @@ import unittest
 from django.db import models
 from django.contrib.auth.models import User
 
-from bookmarks import exceptions, backends
+from bookmarks import exceptions, backends, handlers
 
 
 class BookmarkTestModel(models.Model):
@@ -33,8 +33,17 @@ class BookmarkTestMixin(object):
         self.assertEqual(bookmark.user, user)
         self.assertEqual(bookmark.content_object, instance)
         self.assertEqual(bookmark.key, key)
-    
 
+    def myAssertItemsEqual(self, a, b):
+        """
+        The most complete *assertItemsEqual* is only present in Python >= 2.7.
+        """
+        a_length = len(a)
+        self.assertEqual(a_length, len(b))
+        self.assertEqual(len([i for i in a if i in b]), a_length)
+
+# BACKEND TESTS
+    
 class BaseBackendTest(BookmarkTestMixin):
     def test_add_bookmark(self):
         user, instance, key = self.get_user_instance_key('add')
@@ -87,10 +96,10 @@ class BaseBackendTest(BookmarkTestMixin):
         bookmarks_instance1_user1_key2 = list(self.backend.filter_for(instance1,
             user=user1, key=key2))
         
-        self.assertEqual(bookmarks_user1, [bookmark1, bookmark3, bookmark4])
+        self.myAssertItemsEqual(bookmarks_user1, [bookmark1, bookmark3, bookmark4])
         self.assertEqual(bookmarks_user2_key2, [bookmark5])
-        self.assertEqual(bookmarks_instance1, [bookmark1, bookmark2, bookmark5])
-        self.assertEqual(bookmarks_instance2_user1, [bookmark3, bookmark4])
+        self.myAssertItemsEqual(bookmarks_instance1, [bookmark1, bookmark2, bookmark5])
+        self.myAssertItemsEqual(bookmarks_instance2_user1, [bookmark3, bookmark4])
         self.assertEqual(bookmarks_instance1_user2_key1, [bookmark2])
         self.assertEqual(bookmarks_instance1_user1_key2, [])
         
@@ -124,3 +133,42 @@ class BaseBackendTest(BookmarkTestMixin):
 class DefaultBackendTestCase(unittest.TestCase, BaseBackendTest):
     def setUp(self):
         self.backend = backends.Backend()
+
+# REGISTRY TESTS
+
+class RegistryTestCase(unittest.TestCase, BookmarkTestMixin):
+    def setUp(self):
+        self.store = handlers.Registry()
+
+    def _get_handler(self):
+        class CustomHandler(handlers.Handler):
+            pass
+        return CustomHandler
+
+    def test_registry(self):
+        instance = self.create_instance('handlers')
+        model = type(instance)
+
+        self.store.register(model)
+
+        handler = self.store.get_handler(model)
+        self.assertTrue(isinstance(handler, handlers.Handler))
+        
+        self.assertRaises(exceptions.AlreadyHandled, self.store.register,
+            model)
+        
+        self.store.unregister(type(instance))
+        self.assertRaises(exceptions.NotHandled, self.store.unregister,
+            model)
+
+        self.assertEqual(self.store.get_handler(User), None)
+        
+        custom_handler = self._get_handler()
+        key = 'custom'
+        self.store.register([User, model], custom_handler, default_key=key)
+
+        handler = self.store.get_handler(self.create_user('handlers'))
+        self.assertTrue(isinstance(handler, custom_handler))
+        self.assertEqual(handler.default_key, key)
+
+# TODO: forms, views and templatetag tests
