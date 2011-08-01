@@ -21,7 +21,6 @@ class Bookmark(models.Model):
         related_name='bookmarks')
 
     created_at = models.DateTimeField(auto_now_add=True)
-    modified_at = models.DateTimeField(auto_now=True)
     
     # manager
     objects = managers.BookmarksManager()

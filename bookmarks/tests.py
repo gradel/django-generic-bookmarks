@@ -5,7 +5,6 @@ from django.contrib.auth.models import User
 
 from bookmarks import exceptions, backends, handlers
 
-
 class BookmarkTestModel(models.Model):
     name = models.CharField(max_length=8)
     
@@ -41,6 +40,11 @@ class BookmarkTestMixin(object):
         a_length = len(a)
         self.assertEqual(a_length, len(b))
         self.assertEqual(len([i for i in a if i in b]), a_length)
+
+    def clean(self):
+        BookmarkTestModel.objects.all().delete()
+        User.objects.all().delete()
+
 
 # BACKEND TESTS
     
@@ -87,8 +91,12 @@ class BaseBackendTest(BookmarkTestMixin):
         bookmark5 = self.backend.add(user2, instance1, key2)
 
         bookmarks_user1 = list(self.backend.filter_by(user1))
+        bookmarks_user1_reversed = list(self.backend.filter_by(user1, 
+            reversed=True))
         bookmarks_user2_key2 = list(self.backend.filter_by(user2, key=key2))
         bookmarks_instance1 = list(self.backend.filter_for(instance1))
+        bookmarks_instance1_reversed = list(self.backend.filter_for(instance1,
+            reversed=True))
         bookmarks_instance2_user1 = list(self.backend.filter_for(instance2, 
             user=user1))
         bookmarks_instance1_user2_key1 = list(self.backend.filter_for(instance1, 
@@ -96,10 +104,14 @@ class BaseBackendTest(BookmarkTestMixin):
         bookmarks_instance1_user1_key2 = list(self.backend.filter_for(instance1,
             user=user1, key=key2))
         
-        self.myAssertItemsEqual(bookmarks_user1, [bookmark1, bookmark3, bookmark4])
+        self.assertEqual(bookmarks_user1, [bookmark1, bookmark3, bookmark4])
+        self.assertEqual(bookmarks_user1_reversed, 
+            [bookmark4, bookmark3, bookmark1])
         self.assertEqual(bookmarks_user2_key2, [bookmark5])
-        self.myAssertItemsEqual(bookmarks_instance1, [bookmark1, bookmark2, bookmark5])
-        self.myAssertItemsEqual(bookmarks_instance2_user1, [bookmark3, bookmark4])
+        self.assertEqual(bookmarks_instance1, [bookmark1, bookmark2, bookmark5])
+        self.assertEqual(bookmarks_instance1_reversed, 
+            [bookmark5, bookmark2, bookmark1])
+        self.assertEqual(bookmarks_instance2_user1, [bookmark3, bookmark4])
         self.assertEqual(bookmarks_instance1_user2_key1, [bookmark2])
         self.assertEqual(bookmarks_instance1_user1_key2, [])
         
@@ -128,11 +140,31 @@ class BaseBackendTest(BookmarkTestMixin):
         self.backend.add(user, instance, key)
         bookmarks = list(self.backend.filter_by(user))
         self.assertTrue(isinstance(bookmarks[0], self.backend.get_model()))
-    
 
+    
 class DefaultBackendTestCase(unittest.TestCase, BaseBackendTest):
     def setUp(self):
         self.backend = backends.Backend()
+
+    def tearDown(self):
+        self.clean()
+
+
+try:
+    mongo_backend = backends.MongoBackend()
+except ImportError:
+    print "Skipping mongo backend tests: you must pip install mongoengine."
+except exceptions.MongodbConnectionError:
+    print "Skipping mongo backend tests: unable to connect to mongodb."
+else:
+    class MongoBackendTestCase(unittest.TestCase, BaseBackendTest):            
+        def setUp(self):
+            self.backend = mongo_backend
+
+        def tearDown(self):
+            self.clean()
+            self.backend.db.drop_collection('bookmark')
+
 
 # REGISTRY TESTS
 

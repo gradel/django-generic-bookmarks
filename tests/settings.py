@@ -7,3 +7,4 @@ INSTALLED_APPS = (
     'django.contrib.contenttypes',
     'bookmarks',
 )
+GENERIC_BOOKMARKS_MONGODB = {"NAME": "test_generic_bookmarks"}

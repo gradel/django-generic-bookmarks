@@ -14,3 +14,14 @@ NEXT_QUERYSTRING_KEY = getattr(settings,
 # set to False if you want to globally disable bookmarks deletion
 CAN_REMOVE_BOOKMARKS = getattr(settings, 
     'GENERIC_BOOKMARKS_CAN_REMOVE_BOOKMARKS', True)
+
+# mongodb backend connection parameters
+# if the instance of Mongodb is executed in localhost without authentication 
+# you can just write::
+# GENERIC_BOOKMARKS_MONGODB = {"NAME": "bookmarks"}
+MONGODB = getattr(settings, "GENERIC_BOOKMARKS_MONGODB", {
+    "NAME": "", 
+    "USERNAME": "",
+    "PASSWORD": "",
+    "PARAMETERS": {}, 
+})

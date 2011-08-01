@@ -31,3 +31,9 @@ class DoesNotExist(BookmarksError):
     """
     The bookmark you are trying to remove does not exists.
     """
+
+
+class MongodbConnectionError(BookmarksError):
+    """
+    Cannot connect to mongodb.
+    """
