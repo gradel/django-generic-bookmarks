@@ -90,19 +90,20 @@ class BaseBackendTest(BookmarkTestMixin):
         bookmark4 = self.backend.add(user1, instance2, key2)
         bookmark5 = self.backend.add(user2, instance1, key2)
 
-        bookmarks_user1 = list(self.backend.filter_by(user1))
-        bookmarks_user1_reversed = list(self.backend.filter_by(user1, 
+        bookmarks_user1 = list(self.backend.filter(user=user1))
+        bookmarks_user1_reversed = list(self.backend.filter(user=user1, 
             reversed=True))
-        bookmarks_user2_key2 = list(self.backend.filter_by(user2, key=key2))
-        bookmarks_instance1 = list(self.backend.filter_for(instance1))
-        bookmarks_instance1_reversed = list(self.backend.filter_for(instance1,
-            reversed=True))
-        bookmarks_instance2_user1 = list(self.backend.filter_for(instance2, 
+        bookmarks_user2_key2 = list(self.backend.filter(user=user2, key=key2))
+        bookmarks_instance1 = list(self.backend.filter(instance=instance1))
+        bookmarks_instance1_reversed = list(self.backend.filter(
+            instance=instance1, reversed=True))
+        bookmarks_instance2_user1 = list(self.backend.filter(instance=instance2, 
             user=user1))
-        bookmarks_instance1_user2_key1 = list(self.backend.filter_for(instance1, 
-            user=user2, key=key1))
-        bookmarks_instance1_user1_key2 = list(self.backend.filter_for(instance1,
-            user=user1, key=key2))
+        bookmarks_instance1_user2_key1 = list(self.backend.filter(
+            instance=instance1, user=user2, key=key1))
+        bookmarks_instance1_user1_key2 = list(self.backend.filter(
+            instance=instance1, user=user1, key=key2))
+        bookmarks_model = list(self.backend.filter(model=BookmarkTestModel))
         
         self.assertEqual(bookmarks_user1, [bookmark1, bookmark3, bookmark4])
         self.assertEqual(bookmarks_user1_reversed, 
@@ -114,7 +115,22 @@ class BaseBackendTest(BookmarkTestMixin):
         self.assertEqual(bookmarks_instance2_user1, [bookmark3, bookmark4])
         self.assertEqual(bookmarks_instance1_user2_key1, [bookmark2])
         self.assertEqual(bookmarks_instance1_user1_key2, [])
-        
+        self.assertEqual(len(bookmarks_model), 5)
+
+    def test_get_bookmark(self):
+        user1 = self.create_user('user_get_1')
+        user2 = self.create_user('user_get_2')
+        instance1 = self.create_instance('instance_get_1')
+        instance2 = self.create_instance('instance_get_2')
+        key = 'key_get'
+
+        bookmark1 = self.backend.add(user1, instance1, key)
+        bookmark2 = self.backend.add(user2, instance1, key)
+
+        self.assertEqual(self.backend.get(user2, instance1, key), bookmark2)
+        self.assertRaises(exceptions.DoesNotExist, 
+            self.backend.get, user1, instance2, key)
+
     def test_remove_all_bookmarks_for_instance(self):
         user1 = self.create_user('user_remove_all_1')
         user2 = self.create_user('user_remove_all_2')
@@ -129,8 +145,8 @@ class BaseBackendTest(BookmarkTestMixin):
 
         self.backend.remove_all_for(instance1)
 
-        bookmarks_instance1 = list(self.backend.filter_for(instance1))
-        bookmarks_instance2 = list(self.backend.filter_for(instance2))
+        bookmarks_instance1 = list(self.backend.filter(instance=instance1))
+        bookmarks_instance2 = list(self.backend.filter(instance=instance2))
 
         self.assertEqual(bookmarks_instance1, [])
         self.assertEqual(bookmarks_instance2, [remaining])
@@ -138,13 +154,13 @@ class BaseBackendTest(BookmarkTestMixin):
     def test_bookmark_model(self):
         user, instance, key = self.get_user_instance_key('model')
         self.backend.add(user, instance, key)
-        bookmarks = list(self.backend.filter_by(user))
+        bookmarks = list(self.backend.filter(user=user))
         self.assertTrue(isinstance(bookmarks[0], self.backend.get_model()))
 
     
 class DefaultBackendTestCase(unittest.TestCase, BaseBackendTest):
     def setUp(self):
-        self.backend = backends.Backend()
+        self.backend = backends.ModelBackend()
 
     def tearDown(self):
         self.clean()
@@ -166,11 +182,18 @@ else:
             self.backend.db.drop_collection('bookmark')
 
 
+        def test_filter_bookmarks(self):
+            pass
+
+        def test_bookmark_model(self):
+            pass
+
+
 # REGISTRY TESTS
 
 class RegistryTestCase(unittest.TestCase, BookmarkTestMixin):
     def setUp(self):
-        self.store = handlers.Registry()
+        self.library = handlers.Registry()
 
     def _get_handler(self):
         class CustomHandler(handlers.Handler):
@@ -181,25 +204,25 @@ class RegistryTestCase(unittest.TestCase, BookmarkTestMixin):
         instance = self.create_instance('handlers')
         model = type(instance)
 
-        self.store.register(model)
+        self.library.register(model)
 
-        handler = self.store.get_handler(model)
+        handler = self.library.get_handler(model)
         self.assertTrue(isinstance(handler, handlers.Handler))
         
-        self.assertRaises(exceptions.AlreadyHandled, self.store.register,
+        self.assertRaises(exceptions.AlreadyHandled, self.library.register,
             model)
         
-        self.store.unregister(type(instance))
-        self.assertRaises(exceptions.NotHandled, self.store.unregister,
+        self.library.unregister(type(instance))
+        self.assertRaises(exceptions.NotHandled, self.library.unregister,
             model)
 
-        self.assertEqual(self.store.get_handler(User), None)
+        self.assertEqual(self.library.get_handler(User), None)
         
         custom_handler = self._get_handler()
         key = 'custom'
-        self.store.register([User, model], custom_handler, default_key=key)
+        self.library.register([User, model], custom_handler, default_key=key)
 
-        handler = self.store.get_handler(self.create_user('handlers'))
+        handler = self.library.get_handler(self.create_user('handlers'))
         self.assertTrue(isinstance(handler, custom_handler))
         self.assertEqual(handler.default_key, key)
 

@@ -256,7 +256,7 @@ class Registry(object):
     registered for being bookmarked, and their associated handler classes.
 
     To register a model, obtain an instance of *Registry* (this module exports 
-    one as *store*), and call its *register* method, passing the model class 
+    one as *library*), and call its *register* method, passing the model class 
     and a handler class (which should be a subclass of *Handler*). 
     Note that both of these should be the actual classes, not instances 
     of the classes.
@@ -303,11 +303,11 @@ class Registry(object):
         Register a model or a list of models for bookmark handling, using a 
         particular *handler_class*, e.g.::
         
-            from bookmarks.handlers import store, Handler
+            from bookmarks.handlers import library, Handler
             # register one model
-            store.handle(Article, Handler)
+            library.handle(Article, Handler)
             # register other two models
-            store.register([Film, Series], Handler)
+            library.register([Film, Series], Handler)
         
         If the handler class is not given, the default 
         *bookmarks.handlers.Handler* class will be used.
@@ -315,7 +315,7 @@ class Registry(object):
         If *kwargs* are present, they are used to override the handler
         class attributes (using instance attributes), e.g.::
             
-            store.register(Article, Handler, 
+            library.register(Article, Handler, 
                 can_remove_bookmarks=False, form_class=MyForm)
 
         Raise *AlreadyHandled* if any of the models are already registered.
@@ -395,4 +395,4 @@ class Registry(object):
             return self._registry[model].post_remove(request, bookmark)
             
 # import this instance in your code to use in registering models
-store = Registry()
+library = Registry()

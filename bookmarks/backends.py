@@ -26,7 +26,7 @@ class BaseBackend(object):
             - content_type (a Django content_type instance)
             - object_id (a pk for the bookmarked object)
             - content_object (the bookmarked object as a Django model instance)
-            
+            - created_at (the date when the bookmark is created)
         """
         raise NotImplementedError
         
@@ -51,16 +51,23 @@ class BaseBackend(object):
         """
         raise NotImplementedError
                 
-    def filter_by(self, user, reversed=False, **kwargs):
+    def filter(self, **kwargs):
         """
-        Must return all bookmarks added by *user* and corresponding to
-        other given *kwargs*.
+        Must return all bookmarks corresponding to given *kwargs*.
+
+        The *kwargs* can be:
+            - user: Django user object or pk
+            - instance: a Django model instance
+            - content_type: a Django ContentType instance or pk
+            - model: a Django model
+            - key: the bookmark key to use
+            - reversed: reverse the order of results
 
         The bookmarks must be an iterable (like a Django queryset) of
         *self.get_model()* instances.
 
         The bookmarks must be ordered by creation date (*created_at*):
-        if *reversed* is True, the order must be descending.
+        if *reversed* is True the order must be descending.
         """
         raise NotImplementedError
     
@@ -76,6 +83,13 @@ class BaseBackend(object):
         if *reversed* is True, the order must be descending.
         """
         raise NotImplementedError
+
+    def get(self, user, instance, key):
+        """
+        Must return a bookmark added by *user* for *instance* using *key*.
+        Must raise *exceptions.DoesNotExist* if the bookmark does not exist.
+        """
+        raise NotImplementedError
         
     def exists(self, user, instance, key):
         """
@@ -85,9 +99,9 @@ class BaseBackend(object):
         raise NotImplementedError
         
 
-class Backend(BaseBackend):
+class ModelBackend(BaseBackend):
     """
-    Bookmarks Django model backend.
+    Bookmarks backend based on Django models.
 
     This is used by default if no other backend is specified.
     
@@ -104,26 +118,46 @@ class Backend(BaseBackend):
         
     def remove_all_for(self, instance):
         self.get_model().objects.remove_all_for(instance)
-                
-    def filter_by(self, user, reversed=False, **kwargs):
-        lookups = {'user': user}
-        lookups.update(kwargs)
-        order = '-created_at' if reversed else 'created_at'
-        return self.get_model().objects.filter_with_contents(**lookups
-            ).order_by(order)
     
-    def filter_for(self, instance, reversed=False, **kwargs):
-        order = '-created_at' if reversed else 'created_at'
-        return self.get_model().objects.filter_for(instance, **kwargs
-            ).order_by(order)
+    def filter(self, **kwargs):
+        """
+        The *kwargs* can be:
+            - user: Django user object or pk
+            - instance: a Django model instance
+            - content_type: a Django ContentType instance or pk
+            - model: a Django model
+            - key: the bookmark key to use
+            - reversed: reverse the order of results
+        """
+        order = '-created_at' if kwargs.pop('reversed', False) else 'created_at'
+        if 'instance' in kwargs:
+            instance = kwargs.pop('instance')
+            kwargs.update({
+                'content_type': ContentType.objects.get_for_model(instance),
+                'object_id': instance.pk,
+            })
+        elif 'model' in kwargs:
+            model = kwargs.pop('model')
+            kwargs['content_type'] = ContentType.objects.get_for_model(model)
+        if 'user' in kwargs:
+            queryset = self.get_model().objects.filter_with_contents(**kwargs)
+        else:
+            queryset = self.get_model().objects.filter(**kwargs)
+        return queryset.order_by(order)
+                
+    def get(self, user, instance, key):
+        bookmark = self.get_model().objects.get_for(instance, key, user=user)
+        if bookmark is None:
+            raise exceptions.DoesNotExist
+        return bookmark
         
     def exists(self, user, instance, key):
-        return self.filter_for(instance, user=user, key=key).exists()
+        return self.filter(instance=instance, user=user, key=key).exists()
 
 
 class MongoBackend(BaseBackend):
     """
-    Bookmarks mongodb backend.
+    Bookmarks backend based on MongoDB.
     """
     def __init__(self):
         # establishing mongodb connection
@@ -137,6 +171,9 @@ class MongoBackend(BaseBackend):
             self.db = mongoengine.connect(name, username, password, **parameters)
         except mongoengine.connection.ConnectionError:
             raise exceptions.MongodbConnectionError
+
+    def _get_content_type_id(self, instance):
+        return managers.get_content_type_for_model(instance).id
     
     def get_model(self):
         import datetime
@@ -156,6 +193,13 @@ class MongoBackend(BaseBackend):
 
             meta = {'indexes': ['user_id', ('content_type_id', 'object_id')]}
 
+            def __unicode__(self):
+                return u'Bookmark for %s by %s' % (self.content_object, 
+                    self.user)
+
+            def __eq__(self, other):
+                return self.id == other.id
+
             @property
             def user(self):
                 return User.objects.get(pk=self.user_id)
@@ -171,7 +215,7 @@ class MongoBackend(BaseBackend):
         import mongoengine
         model = self.get_model()
         bookmark = model(
-            content_type_id=managers.get_content_type_for_model(instance).id,
+            content_type_id=self._get_content_type_id(instance),
             object_id=instance.pk,
             key=key,
             user_id=user.pk
@@ -183,40 +227,61 @@ class MongoBackend(BaseBackend):
         return bookmark
         
     def remove(self, user, instance, key):
-        # TODO
-        #self.get_model().objects.remove(user, instance, key)
-        pass
+        bookmark = self.get(user, instance, key)
+        bookmark.delete()
         
     def remove_all_for(self, instance):
-        # TODO
-        #self.get_model().objects.remove_all_for(instance)
-        pass
+        model = self.get_model()
+        model.objects.filter(
+            content_type_id=self._get_content_type_id(instance),
+            object_id=instance.pk,
+        ).delete()
                 
-    def filter_by(self, user, reversed=False, **kwargs):
-        # TODO
-        # lookups = {'user': user}
-        # lookups.update(kwargs)
-        # order = '-created_at' if reversed else 'created_at'
-        # return self.get_model().objects.filter_with_contents(**lookups
-        #     ).order_by(order)
-        pass
+    def filter(self, **kwargs):
+        """
+        The *kwargs* can be:
+            - user: Django user object or pk
+            - instance: a Django model instance
+            - content_type: a Django ContentType instance or pk
+            - model: a Django model
+            - key: the bookmark key to use
+            - reversed: reverse the order of results
+        """
+        order = '-created_at' if kwargs.pop('reversed', False) else 'created_at'
+        if 'instance' in kwargs:
+            instance = kwargs.pop('instance')
+            kwargs.update({
+                'content_type_id': self._get_content_type_id(instance),
+                'object_id': instance.pk,
+            })
+        elif 'model' in kwargs:
+            model = kwargs.pop('model')
+            kwargs['content_type'] = self._get_content_type_id(model)
+        return self.get_model().objects.filter(**kwargs).order_by(order)
     
-    def filter_for(self, instance, reversed=False, **kwargs):
-        # TODO
-        # order = '-created_at' if reversed else 'created_at'
-        # return self.get_model().objects.filter_for(instance, **kwargs
-        #     ).order_by(order)
-        pass
+    def get(self, user, instance, key):
+        model = self.get_model()
+        try:
+            return model.objects.get(
+                content_type_id=self._get_content_type_id(instance),
+                object_id=instance.pk,
+                key=key,
+                user_id=user.pk
+            )
+        except model.DoesNotExist:
+            raise exceptions.DoesNotExist
         
     def exists(self, user, instance, key):
-        # TODO
-        # return self.filter_for(instance, user=user, key=key).exists()
-        pass
+        try:
+            self.get(user, instance, key)
+        except exceptions.DoesNotExist:
+            return False
+        return True
         
         
 def get_backend():
     if settings.BACKEND is None:
-        return Backend()
+        return ModelBackend()
     i = settings.BACKEND.rfind('.')
     module, attr = settings.BACKEND[:i], settings.BACKEND[i+1:]
     try:
