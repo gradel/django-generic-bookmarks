@@ -1,9 +1,24 @@
-import unittest
+from django.utils import unittest
 
 from django.db import models
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, AnonymousUser
+from django.contrib.contenttypes.models import ContentType
+from django.core.handlers.wsgi import WSGIRequest
 
-from bookmarks import exceptions, backends, handlers
+from bookmarks import exceptions, backends, handlers, forms
+
+class Request(WSGIRequest):
+    """
+    WSGIRequest wrapper.
+    """
+    def __init__(self, environ, user=None, method='get'):
+        environ['REQUEST_METHOD'] = method
+        if 'wsgi.input' not in environ:
+            environ['wsgi.input'] = None
+        super(Request, self).__init__(environ)
+        self.user = user or AnonymousUser()
+
+
 
 class BookmarkTestModel(models.Model):
     name = models.CharField(max_length=8)
@@ -33,13 +48,11 @@ class BookmarkTestMixin(object):
         self.assertEqual(bookmark.content_object, instance)
         self.assertEqual(bookmark.key, key)
 
-    def myAssertItemsEqual(self, a, b):
-        """
-        The most complete *assertItemsEqual* is only present in Python >= 2.7.
-        """
-        a_length = len(a)
-        self.assertEqual(a_length, len(b))
-        self.assertEqual(len([i for i in a if i in b]), a_length)
+    def get_content_type(self, model_or_instance):
+        return ContentType.objects.get_for_model(model_or_instance)
+
+    def get_request(self, user=None, **kwargs):
+        return Request(kwargs, user)
 
     def clean(self):
         BookmarkTestModel.objects.all().delete()
@@ -226,4 +239,91 @@ class RegistryTestCase(unittest.TestCase, BookmarkTestMixin):
         self.assertTrue(isinstance(handler, custom_handler))
         self.assertEqual(handler.default_key, key)
 
-# TODO: forms, views and templatetag tests
+
+# FORM TESTS
+
+class FormTestCase(unittest.TestCase, BookmarkTestMixin):
+    def setUp(self):
+        self.backend = backends.ModelBackend()
+        self.form_class = forms.BookmarkForm
+        user, instance, self.key = self.get_user_instance_key('form1')
+        self.bookmark = self.backend.add(user, instance, self.key)
+        self.instance = self.create_instance('form2')
+
+    def tearDown(self):
+        self.clean()
+
+    def _get_initial(self, instance, key):
+        content_type = self.get_content_type(instance)
+        return {
+            'content_type_id': content_type.pk,
+            'object_id': str(instance.pk),
+            'key': key,
+        }
+
+    def test_is_valid(self):
+        initial = self._get_initial(self.bookmark.content_object, self.key)
+        form = self.form_class(self.backend, data=initial)
+        self.assertTrue(form.is_valid())
+        self.assertDictEqual(initial, form.cleaned_data)
+
+        initial['object_id'] = 0
+        form = self.form_class(self.backend, data=initial)
+        self.assertFalse(form.is_valid())
+
+    def test_instance(self):
+        initial =  self._get_initial(self.instance, self.key)
+        form = self.form_class(self.backend, data=initial)
+        form.is_valid()
+        self.assertEqual(self.instance, form.instance)
+
+    def test_existance(self):
+        request = self.get_request(self.bookmark.user)
+
+        initial = self._get_initial(self.bookmark.content_object, self.key)
+        form = self.form_class(self.backend, data=initial)
+        form.is_valid()
+        self.assertTrue(form.bookmark_exists_for(request))
+        
+        initial =  self._get_initial(self.instance, self.key)
+        form = self.form_class(self.backend, data=initial)
+        form.is_valid()
+        self.assertFalse(form.bookmark_exists_for(request))
+
+    def test_add(self):
+        initial = self._get_initial(self.instance, self.key)
+        form = self.form_class(self.backend, data=initial)
+        form.is_valid()
+        request = self.get_request(self.bookmark.user)
+        bookmark = form.save(request)
+        self.assertIsInstance(bookmark, self.backend.get_model())
+        self.assertIsNotNone(bookmark.pk)
+
+    def test_remove(self):
+        initial = self._get_initial(self.bookmark.content_object, self.key)
+        form = self.form_class(self.backend, data=initial)
+        form.is_valid()
+        request = self.get_request(self.bookmark.user)
+        self.assertIsNone(form.save(request))
+
+    def test_invalid_save(self):
+        initial = self._get_initial(self.instance, self.key)
+        form = self.form_class(self.backend, data=initial)
+        form.is_valid()
+        request = self.get_request()
+        self.assertRaises(ValueError, form.save, request)        
+
+
+# TEMPLATETAGS TESTS
+
+class TemplatetagsTestCase(unittest.TestCase, BookmarkTestMixin):
+    # TODO
+    pass
+
+
+# VIEWS TESTS
+
+class ViewTestCase(unittest.TestCase, BookmarkTestMixin):
+    # TODO
+    pass
+

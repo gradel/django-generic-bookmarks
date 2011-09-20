@@ -1,5 +1,6 @@
 from django.db.models.base import ModelBase
 from django.db.models.signals import pre_delete
+from django.contrib.contenttypes.models import ContentType
 
 from bookmarks import settings, backends, forms, exceptions, signals
 
@@ -56,27 +57,32 @@ class Handler(object):
     def __init__(self, model, backend):
         self.model = model
         self.backend = backend
+
+    def __getattr__(self, attr):
+        """
+        Delegate some methods to the underlying backend.
+        """
+        if attr in ('get', 'filter', 'exists'):
+            return getattr(self.backend, attr)
+        raise AttributeError
         
     # key management
             
-    def get_key(self, request, instance):
+    def get_key(self, request, instance, key=None):
         """
-        Return the bookmark key to be used to save the bookmark if the key
-        is not provided by the user (for example with the optional
-        argument *using* in templatetags).
+        Return the bookmark key to be used to save the bookmark.
         
-        Subclasses can return different keys based on the *request* and
-        the given target object *instance*.
+        Subclasses can return different keys based on the *request*, on
+        the given target object *instance* or the optional *key*
+        (that can be provided for example by the templatetags).
         
         For example, if you want a different key to be used if the user is
         staff, you can override this method in this way::
         
             def get_key(self, request, instance):
                 return 'staff' if request.user.is_superuser else 'normal'
-
-        This method is called only if the user does not provide a bookmark key.
         """
-        return self.default_key
+        return key or self.default_key
         
     def allow_key(self, request, instance, key):
         """
@@ -94,23 +100,22 @@ class Handler(object):
             def allow_key(self, request, instance, key):
                 return key in ('main', 'other')        
         """
-        return key == self.get_key(request, instance)
+        return key == self.get_key(request, instance, key)
     
     # form management
     
-    def get_form_class(self, request):
+    def get_form(self, request, instance, key):
         """
         Return the form class that will be used to add or remove bookmarks.
-        This method can be overridden by view-level passed form class.
         """
-        return self.form_class
-        
-    def get_form_kwargs(self, request, instance, key):
-        """
-        Return the optional kwargs used to instantiate the bookmark form.
-        """
-        return {}
-        
+        content_type = ContentType.objects.get_for_model(instance)
+        initial = {
+            'content_type_id': content_type.pk,
+            'object_id': instance.pk,
+            'key': key,
+        }
+        return self.form_class(initial=initial)
+                
     # adding bookmarks
         
     def pre_add(self, request, form):
@@ -237,7 +242,7 @@ class Handler(object):
     
     # receivers
         
-    def deleting_target_object(self, sender, instance, **kwargs):
+    def remove_all_for(self, sender, instance, **kwargs):
         """
         The target object *instance* of the model *sender*, is being deleted,
         so we must delete all the bookmarks related to that instance.
@@ -287,7 +292,7 @@ class Registry(object):
         Connect the *pre_delete* signal sent by given *model* to
         the *handler* receiver.
         """
-        pre_delete.connect(handler.deleting_target_object, sender=model)
+        pre_delete.connect(handler.remove_all_for, sender=model)
     
     def _get_handler_instance(self, model, handler_class, options):
         """

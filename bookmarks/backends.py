@@ -2,8 +2,8 @@ try:
     from importlib import import_module
 except ImportError:
     from django.utils.importlib import import_module
+from django.db import transaction
 from django.core.exceptions import ImproperlyConfigured
-
 from django.contrib.auth.models import User
 from django.contrib.contenttypes.models import ContentType
     
@@ -70,19 +70,6 @@ class BaseBackend(object):
         if *reversed* is True the order must be descending.
         """
         raise NotImplementedError
-    
-    def filter_for(self, instance, reversed=False, **kwargs):
-        """
-        Must return all bookmarks added for *instance* and corresponding to
-        other given *kwargs*.
-
-        The bookmarks must be an iterable (like a Django queryset) of
-        *self.get_model()* instances.
-
-        The bookmarks must be ordered by creation date (*created_at*):
-        if *reversed* is True, the order must be descending.
-        """
-        raise NotImplementedError
 
     def get(self, user, instance, key):
         """
@@ -109,13 +96,16 @@ class ModelBackend(BaseBackend):
     """
     def get_model(self):
         return models.Bookmark
-        
+    
+    @transaction.commit_on_success  
     def add(self, user, instance, key):
         return self.get_model().objects.add(user, instance, key)
-        
+    
+    @transaction.commit_on_success
     def remove(self, user, instance, key):
         self.get_model().objects.remove(user, instance, key)
-        
+    
+    @transaction.commit_on_success
     def remove_all_for(self, instance):
         self.get_model().objects.remove_all_for(instance)
     
