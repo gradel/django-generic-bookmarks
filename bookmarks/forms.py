@@ -10,35 +10,49 @@ class BookmarkForm(forms.Form):
     
     You can customize the app giving a custom form class, following
     some rules:
-    
-        - the form must define the *content_type_id*, *object_id* 
-          and *key* fields
-        - the form's *__init__* method must take a *backend* argument
-          and all other normal form's arguments
-        - the form must define a *bookmark_exists_for* method, 
-          getting a request and returning True if the current user has 
-          that instance with that key in his bookmarks
-        - the form must define a *save* method, getting a request
-          and returning a just added bookmark instance or None if the
-          bookmark was removed
-        - after the call to the *is_valid* method of the form, and if the
-          form is valid, the current instance must be present as
-          *instance* attribute of the form
+        
+        - the form must provide the following fields:
+
+            - content_type_id -> the content type id of the bookmarked instance
+            - object_id -> the bookmarked instance id
+            - key -> the bookmark key
+
+        - the form must define the following methods:
+
+            - __init__(self, request, backend, *args, **kwargs):
+              the *backend* argument is the currently used bookmark backend
+              the *args and **kwargs are normal form *args and **kwargs
+
+            - bookmark_exists(self):
+              return True if the current user has that instance with that key 
+              in his bookmarks
+
+            - instance(self):
+              return the current instance to bookmark or None if the
+              form data (content_type_id and object_id) is invalid
+
+            - save(self):
+              add or remove a bookmark and return it
     """
     content_type_id  = forms.IntegerField(min_value=0, widget=forms.HiddenInput)
     object_id = forms.CharField(widget=forms.HiddenInput)
     key = forms.RegexField(regex=r'^[\w.+-]+$', widget=forms.HiddenInput)
 
-    def __init__(self, backend, *args, **kwargs):
+    def __init__(self, request, backend, *args, **kwargs):
         super(BookmarkForm, self).__init__(*args, **kwargs)
+        self.request = request
         self.backend = backend
+        self._instance = None
 
     def clean(self):
         """
         Check if an instance with current *content_type_id* and *object_id*
         actually exists in the database.
-        Also, that instance will be present in *self.instance*.
+        Also, check that current user is authenticated.
         """
+        if self.request.user.is_anonymous():
+            raise forms.ValidationError(u'Invalid user.')
+        # data validation
         content_type_id = self.cleaned_data.get('content_type_id')
         object_id = self.cleaned_data.get('object_id')
         if content_type_id and object_id:
@@ -49,32 +63,44 @@ class BookmarkForm(forms.Form):
                 raise forms.ValidationError(u'Invalid content type.')
             # getting instance
             try:
-                self.instance = ct.get_object_for_this_type(pk=object_id)
+                self._instance = ct.get_object_for_this_type(pk=object_id)
             except ct.model_class().DoesNotExist:
                 raise forms.ValidationError(u'Invalid instance.')
         # call the parent
         return super(BookmarkForm, self).clean()
-    
-    def bookmark_exists_for(self, request):
-        """
-        Return True if the current instance is bookmarked by 
-        the user in *request*.
 
-        Raise ValueError if the current user is not authenticated.
+    def instance(self):
         """
-        if request.user.is_authenticated():
-            key = self.cleaned_data['key']
-            return self.backend.exists(request.user, self.instance, key)
-        raise ValueError(u'Current user is not authenticated.')
+        Return the bookmarked instance or None if the form is not valid.
 
-    def save(self, request):
+        This method validates the form.
         """
-        Add or remove the bookmark.
+        if self.is_valid():
+            return self._instance
 
-        Raise ValueError if the current user is not authenticated.
+    def _exists(self):
+        key = self.cleaned_data['key']
+        return self.backend.exists(self.request.user, self._instance, key)
+        
+    def bookmark_exists(self):
+        """
+        Return True if *self.instance* is bookmarked by the current user
+        with the current key.
+
+        Raise ValueError if the form is not valid.
+
+        This method validates the form.
+        """
+        if self.is_valid():
+            return self._exists()
+        raise ValueError(u'Form is not valid.')
+
+    def save(self):
+        """
+        Add or remove the bookmark and return it.
+
+        You must call this method only after form validation.
         """
         key = self.cleaned_data['key']
-        if self.bookmark_exists_for(request):
-            # remove the bookmark
-            return self.backend.remove(request.user, self.instance, key)
-        return self.backend.add(request.user, self.instance, key)
+        method = self.backend.remove if self._exists() else self.backend.add
+        return method(self.request.user, self._instance, key)

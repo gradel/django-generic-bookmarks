@@ -132,6 +132,7 @@ class BookmarksManager(models.Manager):
         except self.model.DoesNotExist:
             raise exceptions.DoesNotExist
         bookmark.delete()
+        return bookmark
         
     def remove_all_for(self, content_object):
         """

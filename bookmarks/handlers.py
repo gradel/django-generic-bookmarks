@@ -103,87 +103,65 @@ class Handler(object):
         return key == self.get_key(request, instance, key)
     
     # form management
-    
-    def get_form(self, request, instance, key):
+
+    def get_form_class(self, request):
+        """
+        Return the form class that will be used to add or remove bookmarks.
+        """
+        return self.form_class
+        
+    def get_form(self, request, instance, key, data=None):
         """
         Return the form class that will be used to add or remove bookmarks.
         """
         content_type = ContentType.objects.get_for_model(instance)
         initial = {
             'content_type_id': content_type.pk,
-            'object_id': instance.pk,
+            'object_id': str(instance.pk),
             'key': key,
         }
-        return self.form_class(initial=initial)
+        return self.form_class(request, self.backend, 
+            initial=initial)
                 
-    # adding bookmarks
+    # toggling bookmarks
         
-    def pre_add(self, request, form):
+    def pre_save(self, request, form):
         """
-        Called just before the bookmark is saved to the db, this method takes
-        the *request* and the *form* instance.
+        Called just before the bookmark is added or removed, this method 
+        takes the *request* and the *form* instance.
         
-        Subclasses can use this method to check if the bookamrk can be saved 
-        and, if necessary, block the bookmarking process returning False.
+        Subclasses can use this method to check if the bookmark can be saved 
+        or deleted, and, if necessary, block the bookmarking process 
+        returning False.
         
-        This method is called by a *signals.bookmark_will_be_added* 
-        receiver always attached to the handler.
+        This method is called by a *signals.bookmark_pre_save* receiver 
+        always attached to the handler by the registry.
+
         It's up to the developer if override this method or just connect
         another listener to the signal: the bookmarking process is killed 
         if just one receiver returns False.
         """
-        return request.user.is_authenticated()
+        if form.bookmark_exists() and not self.can_remove_bookmarks:
+            return False
         
-    def add(self, request, form):
+    def save(self, request, form):
         """
         Save the bookamrk to the database.
         Must return the new saved bookmark.        
         """
         return form.save()
         
-    def post_add(self, request, bookmark, created):
+    def post_save(self, request, bookmark, added):
         """
-        Called just after a bookmark is saved to the db.
+        Called just after a bookmark is added or removed.
+
+        The given arguments are the current *request*, the just added
+        or deleted *bookmark* and the boolean *added* 
+        (True if the bookmark was added).
         
-        This method is called by a *signals.bookmark_was_added* receiver
-        always attached to the handler.
-        It's up to the developer if override this method or just connect
-        another listener to the signal.
-        
-        By default, this method does noting.
-        """
-        pass
-        
-    # removing bookmarks
-    
-    def pre_remove(self, request, form):
-        """
-        Called just before the bookmark is deleted from the db, 
-        this method takes the *request* and the *form* instance.
-        
-        Subclasses can use this method to check if the bookmark can be deleted 
-        and, if necessary, block the bookmark deletion process returning False.
-        
-        This method is called by a *signals.bookmark_will_be_removed* 
-        receiver always attached to the handler.
-        It's up to the developer if override this method or just connect
-        another listener to the signal: the bookmark deletion process 
-        is killed if just one receiver returns False.
-        """
-        return request.user.is_authenticated() and self.can_remove_bookmarks
-        
-    def remove(self, request, form):
-        """
-        Delete the bookmark from the database.
-        """
-        form.delete()
-        
-    def post_remove(self, request, bookmark):
-        """
-        Called just after a bookmark is deleted to from db.
-        
-        This method is called by a *signals.bookmark_was_removed* receiver
-        always attached to the handler.
+        This method is called by a *signals.bookmark_post_save* receiver
+        always attached to the handler by the registry.
+
         It's up to the developer if override this method or just connect
         another listener to the signal.
         
@@ -282,10 +260,8 @@ class Registry(object):
         """
         Pre and post (add or remove) bookmark signals.
         """
-        signals.bookmark_will_be_added.connect(self._pre_add, sender=model)
-        signals.bookmark_was_added.connect(self._post_add, sender=model)
-        signals.bookmark_will_be_removed.connect(self._pre_remove, sender=model)
-        signals.bookmark_was_removed.connect(self._post_remove, sender=model)
+        signals.bookmark_pre_save.connect(self._pre_save, sender=model)
+        signals.bookmark_post_save.connect(self._post_save, sender=model)
         
     def _connect_model_signals(self, model, handler):
         """
@@ -365,39 +341,24 @@ class Registry(object):
             model = type(model_or_instance)
         return self._registry.get(model)
 
-    def _pre_add(self, sender, form, request, **kwargs):
+    def _pre_save(self, sender, form, request, **kwargs):
         """
-        Apply any necessary pre-save steps to new bookmarks.
+        Apply any necessary pre-save steps to bookmarks.
         """
-        model = type(form.target_object)
+        model = type(form.instance())
         if model in self._registry:
-            return self._registry[model].pre_add(request, form)
+            return self._registry[model].pre_save(request, form)
         return False
         
-    def _post_add(self, sender, bookmark, request, **kwargs):
+    def _post_save(self, sender, bookmark, request, **kwargs):
         """
         Apply any necessary post-save steps to new bookmarks.
         """
         model = bookmark.content_type.model_class()
         if model in self._registry:
-            return self._registry[model].post_add(request, bookmark)
+            return self._registry[model].post_save(request, bookmark,
+                bool(bookmark.pk))
         
-    def _pre_remove(self, sender, form, request, **kwargs):
-        """
-        Apply any necessary pre-delete bookmark steps.
-        """
-        model = type(form.target_object)
-        if model in self._registry:
-            return self._registry[model].pre_remove(request, form)
-        return False
-
-    def _post_remove(self, sender, bookmark, request, **kwargs):
-        """
-        Apply any necessary post-delete bookmark steps.
-        """
-        model = bookmark.content_type.model_class()
-        if model in self._registry:
-            return self._registry[model].post_remove(request, bookmark)
             
 # import this instance in your code to use in registering models
 library = Registry()

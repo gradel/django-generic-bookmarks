@@ -41,6 +41,7 @@ class BaseBackend(object):
     def remove(self, user, instance, key):
         """
         Must remove the bookmark identified by *user*, *instance* and *key*.
+        Must return the removed bookmark (as a *self.get_model()* instance).
         Must raise *exceptions.DoesNotExist* if the bookmark does not exist.
         """
         raise NotImplementedError
@@ -103,7 +104,7 @@ class ModelBackend(BaseBackend):
     
     @transaction.commit_on_success
     def remove(self, user, instance, key):
-        self.get_model().objects.remove(user, instance, key)
+        return self.get_model().objects.remove(user, instance, key)
     
     @transaction.commit_on_success
     def remove_all_for(self, instance):
@@ -161,11 +162,12 @@ class MongoBackend(BaseBackend):
             self.db = mongoengine.connect(name, username, password, **parameters)
         except mongoengine.connection.ConnectionError:
             raise exceptions.MongodbConnectionError
+        self._model = None
 
     def _get_content_type_id(self, instance):
         return managers.get_content_type_for_model(instance).id
     
-    def get_model(self):
+    def _create_model(self):
         import datetime
         from mongoengine import Document, IntField, StringField, DateTimeField
         
@@ -200,6 +202,11 @@ class MongoBackend(BaseBackend):
                 return ct.get_object_for_this_type(pk=self.object_id)
         
         return Bookmark
+    
+    def get_model(self):
+        if self._model is None:
+            self._model = self._create_model()
+        return self._model
 
     def add(self, user, instance, key):
         import mongoengine
@@ -219,6 +226,7 @@ class MongoBackend(BaseBackend):
     def remove(self, user, instance, key):
         bookmark = self.get(user, instance, key)
         bookmark.delete()
+        return bookmark
         
     def remove_all_for(self, instance):
         model = self.get_model()

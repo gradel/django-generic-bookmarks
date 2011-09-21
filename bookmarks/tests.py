@@ -3,9 +3,10 @@ from django.utils import unittest
 from django.db import models
 from django.contrib.auth.models import User, AnonymousUser
 from django.contrib.contenttypes.models import ContentType
+from django.template import Template, Context
 from django.core.handlers.wsgi import WSGIRequest
 
-from bookmarks import exceptions, backends, handlers, forms
+from bookmarks import settings, exceptions, backends, handlers, forms
 
 class Request(WSGIRequest):
     """
@@ -249,6 +250,7 @@ class FormTestCase(unittest.TestCase, BookmarkTestMixin):
         user, instance, self.key = self.get_user_instance_key('form1')
         self.bookmark = self.backend.add(user, instance, self.key)
         self.instance = self.create_instance('form2')
+        self.request = self.get_request(user)
 
     def tearDown(self):
         self.clean()
@@ -262,63 +264,142 @@ class FormTestCase(unittest.TestCase, BookmarkTestMixin):
         }
 
     def test_is_valid(self):
+        # valid
         initial = self._get_initial(self.bookmark.content_object, self.key)
-        form = self.form_class(self.backend, data=initial)
+        form = self.form_class(self.request, self.backend, data=initial)
         self.assertTrue(form.is_valid())
         self.assertDictEqual(initial, form.cleaned_data)
 
+        # invalid: user is not authenticated
+        form = self.form_class(self.get_request(), self.backend, data=initial)
+        self.assertFalse(form.is_valid())
+
+        # invalid: instance not found
         initial['object_id'] = 0
-        form = self.form_class(self.backend, data=initial)
+        form = self.form_class(self.request, self.backend, data=initial)
         self.assertFalse(form.is_valid())
 
     def test_instance(self):
         initial =  self._get_initial(self.instance, self.key)
-        form = self.form_class(self.backend, data=initial)
-        form.is_valid()
-        self.assertEqual(self.instance, form.instance)
+        form = self.form_class(self.request, self.backend, data=initial)
+        self.assertEqual(self.instance, form.instance())
 
     def test_existance(self):
-        request = self.get_request(self.bookmark.user)
-
         initial = self._get_initial(self.bookmark.content_object, self.key)
-        form = self.form_class(self.backend, data=initial)
-        form.is_valid()
-        self.assertTrue(form.bookmark_exists_for(request))
+        form = self.form_class(self.request, self.backend, data=initial)
+        self.assertTrue(form.bookmark_exists())
         
         initial =  self._get_initial(self.instance, self.key)
-        form = self.form_class(self.backend, data=initial)
-        form.is_valid()
-        self.assertFalse(form.bookmark_exists_for(request))
+        form = self.form_class(self.request, self.backend, data=initial)
+        self.assertFalse(form.bookmark_exists())
 
     def test_add(self):
         initial = self._get_initial(self.instance, self.key)
-        form = self.form_class(self.backend, data=initial)
+        form = self.form_class(self.request, self.backend, data=initial)
         form.is_valid()
-        request = self.get_request(self.bookmark.user)
-        bookmark = form.save(request)
+        bookmark = form.save()
         self.assertIsInstance(bookmark, self.backend.get_model())
         self.assertIsNotNone(bookmark.pk)
 
     def test_remove(self):
         initial = self._get_initial(self.bookmark.content_object, self.key)
-        form = self.form_class(self.backend, data=initial)
+        form = self.form_class(self.request, self.backend, data=initial)
         form.is_valid()
-        request = self.get_request(self.bookmark.user)
-        self.assertIsNone(form.save(request))
+        bookmark = form.save()
+        self.assertIsInstance(bookmark, self.backend.get_model())
+        self.assertIsNone(bookmark.pk)
 
-    def test_invalid_save(self):
+    def test_invalid_call(self):
         initial = self._get_initial(self.instance, self.key)
-        form = self.form_class(self.backend, data=initial)
+        form = self.form_class(self.get_request(), self.backend, data=initial)
         form.is_valid()
-        request = self.get_request()
-        self.assertRaises(ValueError, form.save, request)        
+        self.assertRaises(ValueError, form.bookmark_exists)        
 
 
 # TEMPLATETAGS TESTS
 
 class TemplatetagsTestCase(unittest.TestCase, BookmarkTestMixin):
-    # TODO
-    pass
+    def setUp(self):
+        handlers.library.register(BookmarkTestModel)
+        self.backend = backends.ModelBackend()
+        user, instance, key = self.get_user_instance_key('templatetags1')
+        self.bookmark1 = self.backend.add(user, instance, key)
+        instance = self.create_instance('templatetags2')
+        self.bookmark2 = self.backend.add(user, instance, settings.DEFAULT_KEY)
+        self.instance = self.create_instance('templatetags3')
+        self.request_anonymous = self.get_request()
+        self.request = self.get_request(self.bookmark1.user)
+        self.handler = handlers.library.get_handler(BookmarkTestModel)
+
+    def tearDown(self):
+        self.clean()
+        handlers.library.unregister(BookmarkTestModel)
+
+    def render(self, template, context_dict, request=None):
+        context = Context(context_dict.copy())
+        if request is not None:
+            context['request'] = request
+        html =  Template(template).render(context)
+        return html, context
+
+    def test_bookmark(self):
+        # successfully retreiving a bookmark
+        template = u"""
+            {% load bookmarks_tags %}
+            {% bookmark for instance using mykey as mybookmark %}
+        """
+        context_dict = {
+            'instance': self.bookmark1.content_object,
+            'mykey': self.bookmark1.key
+        }
+        html, context = self.render(template, context_dict, self.request)
+        self.assertEqual(context['mybookmark'], self.bookmark1)
+        # successfully retreiving a bookmark using hardcoded key,
+        # dotted notation and default key
+        template2 = u"""
+            {% load bookmarks_tags %}
+            {% bookmark for instances.0 as mybookmark %}
+        """ 
+        context_dict = {
+            'instances': [self.bookmark2.content_object],
+        }
+        html, context = self.render(template2, context_dict, self.request)
+        self.assertEqual(context['mybookmark'], self.bookmark2)
+        # retreiving failure because of unexistent bookmark
+        context_dict = {
+            'instance': self.instance,
+            'mykey': self.bookmark1.key
+        }
+        html, context = self.render(template, context_dict, self.request)
+        self.assertIsNone(context.get('mybookmark'))
+        # retreiving failure because of anonymous user
+        context_dict = {
+            'instance': self.bookmark1.content_object,
+            'mykey': self.bookmark1.key
+        }
+        html, context = self.render(template, context_dict, self.request_anonymous)
+        self.assertIsNone(context.get('mybookmark'))
+
+
+    def test_bookmark_form(self):
+        # successfully retreiving a form
+        template = u"""
+            {% load bookmarks_tags %}
+            {% bookmark_form for instance using mykey as myform %}
+        """
+        context_dict = {
+            'instance': self.bookmark1.content_object,
+            'mykey': self.bookmark1.key
+        }
+        html, context = self.render(template, context_dict, self.request)
+        form = context['myform']
+        form.is_valid()
+        self.assertIsInstance(form, self.handler.form_class)
+        form.is_
+        import ipdb; ipdb.set_trace()
+        # self.assertEqual(context['myform'], self.bookmark1)
+
+
 
 
 # VIEWS TESTS
