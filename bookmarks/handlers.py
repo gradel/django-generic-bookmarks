@@ -25,6 +25,11 @@ class Handler(object):
         
         default key to use for bookmarks when there is only one 
         bookmark-per-content (default: *'main'*)
+
+    .. py:attribute:: allowed_keys
+        
+        the bookmark allowed keys 
+        (default: *['main']*)
         
     .. py:attribute:: next_querystring_key
     
@@ -49,9 +54,10 @@ class Handler(object):
     used during the bookmarking process.
     """
     default_key = settings.DEFAULT_KEY
+    allowed_keys = [settings.DEFAULT_KEY]
     next_querystring_key = settings.NEXT_QUERYSTRING_KEY
     can_remove_bookmarks = settings.CAN_REMOVE_BOOKMARKS
-    
+
     form_class = forms.BookmarkForm
     
     def __init__(self, model, backend):
@@ -100,7 +106,7 @@ class Handler(object):
             def allow_key(self, request, instance, key):
                 return key in ('main', 'other')        
         """
-        return key == self.get_key(request, instance, key)
+        return key in self.allowed_keys
     
     # form management
 
@@ -109,19 +115,6 @@ class Handler(object):
         Return the form class that will be used to add or remove bookmarks.
         """
         return self.form_class
-        
-    def get_form(self, request, instance, key, data=None):
-        """
-        Return the form class that will be used to add or remove bookmarks.
-        """
-        content_type = ContentType.objects.get_for_model(instance)
-        initial = {
-            'content_type_id': content_type.pk,
-            'object_id': str(instance.pk),
-            'key': key,
-        }
-        return self.form_class(request, self.backend, 
-            initial=initial)
                 
     # toggling bookmarks
         

@@ -8,3 +8,4 @@ INSTALLED_APPS = (
     'bookmarks',
 )
 GENERIC_BOOKMARKS_MONGODB = {"NAME": "test_generic_bookmarks"}
+ROOT_URLCONF = 'urls'

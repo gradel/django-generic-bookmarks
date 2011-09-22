@@ -1,9 +1,11 @@
-<form action="{% url bookmarks_bookmark %}" method="post" accept-charset="UTF-8">
-    {% csrf_token %}
-    {{ form }}
-    {% if user.is_authenticated %}
-        <input type="submit" value="{% if form.bookmark_exist %}remove{% else %}add{% endif %}" />
-    {% else %}
-        <a href="{{ login_url }}?{{ next }}={{ request.get_full_path }}">add</a>
-    {% endif %}
-</form>
+{% if form %}
+    <form action="{% url bookmarks_bookmark %}" method="post" accept-charset="UTF-8">
+        {% csrf_token %}
+        {{ form }}
+        {% if user.is_authenticated %}
+            <input type="submit" value="{% if form.bookmark_exist %}remove{% else %}add{% endif %}" />
+        {% else %}
+            <a href="{{ login_url }}?{{ next }}={{ request.get_full_path }}">add</a>
+        {% endif %}
+    </form>
+{% endif %}

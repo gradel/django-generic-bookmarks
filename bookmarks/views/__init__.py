@@ -3,4 +3,10 @@ from django import http
 
 from bookmarks import handlers, signals
 
-# TODO
+def bookmark(request):
+    # TODO
+    pass
+
+def ajax_form(request):
+    # TODO
+    pass

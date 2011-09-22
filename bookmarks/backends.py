@@ -7,7 +7,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django.contrib.auth.models import User
 from django.contrib.contenttypes.models import ContentType
     
-from bookmarks import settings, models, managers, exceptions
+from bookmarks import settings, models, utils, exceptions
 
 class BaseBackend(object):
     """
@@ -124,12 +124,12 @@ class ModelBackend(BaseBackend):
         if 'instance' in kwargs:
             instance = kwargs.pop('instance')
             kwargs.update({
-                'content_type': ContentType.objects.get_for_model(instance),
+                'content_type': utils.get_content_type_for_model(instance),
                 'object_id': instance.pk,
             })
         elif 'model' in kwargs:
             model = kwargs.pop('model')
-            kwargs['content_type'] = ContentType.objects.get_for_model(model)
+            kwargs['content_type'] = utils.get_content_type_for_model(model)
         if 'user' in kwargs:
             queryset = self.get_model().objects.filter_with_contents(**kwargs)
         else:
@@ -165,7 +165,7 @@ class MongoBackend(BaseBackend):
         self._model = None
 
     def _get_content_type_id(self, instance):
-        return managers.get_content_type_for_model(instance).id
+        return utils.get_content_type_for_model(instance).id
     
     def _create_model(self):
         import datetime

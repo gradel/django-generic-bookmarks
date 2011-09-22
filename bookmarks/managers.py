@@ -1,17 +1,7 @@
 from django.db import models
-from django.utils.functional import memoize
 from django.contrib.contenttypes.models import ContentType
 
-from bookmarks import exceptions
-
-_get_content_type_for_model_cache = {}
-
-def get_content_type_for_model(model):
-    return ContentType.objects.get_for_model(model)
-
-get_content_type_for_model = memoize(get_content_type_for_model, 
-    _get_content_type_for_model_cache, 1)
-
+from bookmarks import exceptions, utils
 
 class QuerysetWithContents(object):
     """
@@ -64,7 +54,7 @@ class BookmarksManager(models.Manager):
         Return the instance related to *content_object* and matching *kwargs*. 
         Return None if a bookmark is not found.
         """
-        content_type = get_content_type_for_model(type(content_object))
+        content_type = utils.get_content_type_for_model(type(content_object))
         try:
             return self.get(key=key, content_type=content_type, 
                 object_id=content_object.pk, **kwargs)
@@ -78,11 +68,11 @@ class BookmarksManager(models.Manager):
         both a model instance or a model class.
         """
         if isinstance(content_object_or_model, models.base.ModelBase):
-            lookups = {'content_type': get_content_type_for_model(
+            lookups = {'content_type': utils.get_content_type_for_model(
                 content_object_or_model)}
         else:
             lookups = {
-                'content_type': get_content_type_for_model(
+                'content_type': utils.get_content_type_for_model(
                     type(content_object_or_model)),
                 'object_id': content_object_or_model.pk,
             }
@@ -111,7 +101,7 @@ class BookmarksManager(models.Manager):
         Raise a *Bookmark.AlreadyExists* exception if that kind of 
         bookmark is present in the db.
         """
-        content_type = get_content_type_for_model(type(content_object))
+        content_type = utils.get_content_type_for_model(type(content_object))
         try:
             return self.create(user=user, content_type=content_type,
                 object_id=content_object.pk, key=key)
@@ -125,7 +115,7 @@ class BookmarksManager(models.Manager):
         Raise a *Bookmark.DoesNotExist* exception if that kind of 
         bookmark is not present in the db.
         """
-        content_type = get_content_type_for_model(type(content_object))
+        content_type = utils.get_content_type_for_model(type(content_object))
         try:
             bookmark = self.get(user=user, content_type=content_type,
                 object_id=content_object.pk, key=key)
@@ -141,6 +131,6 @@ class BookmarksManager(models.Manager):
         The application uses this whenever a bookmarkable model instance
         is deleted, in order to mantain the integrity of the bookmarks table.
         """
-        content_type = get_content_type_for_model(type(content_object))
+        content_type = utils.get_content_type_for_model(type(content_object))
         self.filter(content_type=content_type, 
             object_id=content_object.id).delete()

@@ -4,7 +4,7 @@ These views are only available if you are using Django >= 1.3.
 """
 from django.views.generic.detail import DetailView
 
-class BookmarkersView(DetailView):
+class BookmarkersForView(DetailView):
     """
     Can be used to render a list of users that bookmarked a given object.
 
@@ -49,7 +49,7 @@ class BookmarkersView(DetailView):
         pass
         
 
-class BookmarksView(DetailView):
+class BookmarkedByView(DetailView):
     """
     Can be used to render a list of objects bookmarked by a given user.
 

@@ -20,7 +20,6 @@ class Request(WSGIRequest):
         self.user = user or AnonymousUser()
 
 
-
 class BookmarkTestModel(models.Model):
     name = models.CharField(max_length=8)
     
@@ -340,7 +339,7 @@ class TemplatetagsTestCase(unittest.TestCase, BookmarkTestMixin):
         if request is not None:
             context['request'] = request
         html =  Template(template).render(context)
-        return html, context
+        return html.strip(), context
 
     def test_bookmark(self):
         # successfully retreiving a bookmark
@@ -353,6 +352,7 @@ class TemplatetagsTestCase(unittest.TestCase, BookmarkTestMixin):
             'mykey': self.bookmark1.key
         }
         html, context = self.render(template, context_dict, self.request)
+        self.assertFalse(html)
         self.assertEqual(context['mybookmark'], self.bookmark1)
         # successfully retreiving a bookmark using hardcoded key,
         # dotted notation and default key
@@ -377,34 +377,270 @@ class TemplatetagsTestCase(unittest.TestCase, BookmarkTestMixin):
             'instance': self.bookmark1.content_object,
             'mykey': self.bookmark1.key
         }
-        html, context = self.render(template, context_dict, self.request_anonymous)
+        html, context = self.render(template, context_dict, 
+            self.request_anonymous)
         self.assertIsNone(context.get('mybookmark'))
-
-
-    def test_bookmark_form(self):
-        # successfully retreiving a form
-        template = u"""
-            {% load bookmarks_tags %}
-            {% bookmark_form for instance using mykey as myform %}
-        """
+        # retreiving failure because the instance is not bookmarkable
+        handlers.library.unregister(BookmarkTestModel)
         context_dict = {
             'instance': self.bookmark1.content_object,
             'mykey': self.bookmark1.key
         }
         html, context = self.render(template, context_dict, self.request)
+        self.assertIsNone(context.get('mybookmark'))
+        handlers.library.register(BookmarkTestModel)
+
+
+    def test_bookmark_form(self):
+        # successfully retreiving a form for existent bokmark
+        template = u"""
+            {% load bookmarks_tags %}
+            {% bookmark_form for instance using mykey as myform %}
+        """
+        context_dict = {
+            'instance': self.bookmark2.content_object,
+            'mykey': settings.DEFAULT_KEY,
+        }
+        html, context = self.render(template, context_dict, self.request)
+        self.assertFalse(html)
         form = context['myform']
         form.is_valid()
         self.assertIsInstance(form, self.handler.form_class)
-        form.is_
-        import ipdb; ipdb.set_trace()
-        # self.assertEqual(context['myform'], self.bookmark1)
+        self.assertTrue(form.is_valid())
+        self.assertTrue(form.bookmark_exists())
+        self.assertEqual(form.instance(), self.bookmark2.content_object)
+        # successfully retreiving a form for unexistent bokmark without key
+        template2 = u"""
+            {% load bookmarks_tags %}
+            {% bookmark_form for instance as myform %}
+        """
+        context_dict = {
+            'instance': self.instance,
+        }
+        html, context = self.render(template2, context_dict, self.request)
+        self.assertFalse(html)
+        form = context['myform']
+        form.is_valid()
+        self.assertIsInstance(form, self.handler.form_class)
+        self.assertTrue(form.is_valid())
+        self.assertFalse(form.bookmark_exists())
+        self.assertEqual(form.instance(), self.instance)
+        # retreiving failure because the key is not allowed
+        context_dict = {
+            'instance': self.bookmark1.content_object,
+            'mykey': self.bookmark1.key,
+        }
+        html, context = self.render(template, context_dict, self.request)
+        self.assertFalse(html)
+        self.assertIsNone(context.get('myform'))
+        # successfully retreiving a form with dotted notation and different key
+        template3 = u"""
+            {% load bookmarks_tags %}
+            {% bookmark_form for instances.0 using mykey as myform %}
+        """
+        context_dict = {
+            'instances': [self.bookmark1.content_object],
+            'mykey': self.bookmark1.key,
+        }
+        backup = self.handler.allowed_keys
+        self.handler.allowed_keys = [self.bookmark1.key]
+        html, context = self.render(template3, context_dict, self.request)
+        self.assertFalse(html)
+        form = context['myform']
+        form.is_valid()
+        self.assertIsInstance(form, self.handler.form_class)
+        self.assertTrue(form.is_valid())
+        self.assertTrue(form.bookmark_exists())
+        self.assertEqual(form.instance(), self.bookmark1.content_object)
+        self.handler.allowed_keys = backup
+        # retreiving failure because of anonymous user
+        context_dict = {
+            'instance': self.bookmark2.content_object,
+            'mykey': settings.DEFAULT_KEY,
+        }
+        html, context = self.render(template, context_dict, 
+            self.request_anonymous)
+        self.assertFalse(html)
+        self.assertIsNone(context.get('myform'))
+        # retreiving failure because the instance is not bookmarkable
+        handlers.library.unregister(BookmarkTestModel)
+        html, context = self.render(template, context_dict, self.request)
+        self.assertIsNone(context.get('myform'))
+        handlers.library.register(BookmarkTestModel)
+        # return html
+        template4 = u"""
+            {% load bookmarks_tags %}
+            {% bookmark_form for instance %}
+        """
+        context_dict = {
+            'instance': self.instance,
+        }
+        html, context = self.render(template4, context_dict, self.request)
+        self.assertTrue(html)
 
+    def test_ajax_bookmark_form(self):
+        template = u"""
+            {% load bookmarks_tags %}
+            {% ajax_bookmark_form for instance %}
+        """
+        context_dict = {
+            'instance': self.instance,
+        }
+        html, context = self.render(template, context_dict, self.request)
+        self.assertTrue(html)
 
+    def test_bookmarks(self):
+        self.clean()
+        user1 = self.create_user('templatetags_bookmark_1')
+        user2 = self.create_user('templatetags_bookmark_2')
+        instance1 = self.create_instance('templatetags_bookmark_1')
+        instance2 = self.create_instance('templatetags_bookmark_2')
+        key1, key2 = 'templatetags_bookmark_1', 'templatetags_bookmark_2'
+        bookmark1 = self.backend.add(user1, instance1, key1)
+        bookmark2 = self.backend.add(user1, instance1, key2)
+        bookmark3 = self.backend.add(user2, instance1, key1)
+        bookmark4 = self.backend.add(user2, instance2, key2)
+        bookmark5 = self.backend.add(user1, user2, key1)
+        # getting all bookmarks
+        template = u"""
+            {% load bookmarks_tags %}
+            {% bookmarks as bookmarks %}
+        """
+        context_dict = {}
+        html, context = self.render(template, context_dict, self.request)
+        bookmarks = list(context['bookmarks'])
+        expected = [bookmark1, bookmark2, bookmark3, bookmark4, bookmark5]
+        self.assertEqual(bookmarks, expected)
+        # getting all bookmarks of instance1
+        template = u"""
+            {% load bookmarks_tags %}
+            {% bookmarks of instance as bookmarks %}
+        """
+        context_dict = {
+            'instance': instance1,
+        }
+        html, context = self.render(template, context_dict, self.request)
+        bookmarks = list(context['bookmarks'])
+        expected = [bookmark1, bookmark2, bookmark3]
+        self.assertEqual(bookmarks, expected)
+        # getting all bookmarks of user2
+        template = u"""
+            {% load bookmarks_tags %}
+            {% bookmarks by user as bookmarks %}
+        """
+        context_dict = {
+            'user': user2,
+        }
+        html, context = self.render(template, context_dict, self.request)
+        bookmarks = list(context['bookmarks'])
+        expected = [bookmark3, bookmark4]
+        self.assertEqual(bookmarks, expected)
+        # getting all bookmarks of dotted user1 reversed
+        template = u"""
+            {% load bookmarks_tags %}
+            {% bookmarks by users.0 reversed as bookmarks %}
+        """
+        context_dict = {
+            'users': [user1],
+        }
+        html, context = self.render(template, context_dict, self.request)
+        bookmarks = list(context['bookmarks'])
+        expected = [bookmark5, bookmark2, bookmark1]
+        self.assertEqual(bookmarks, expected)
+        # getting all bookmarks of key2
+        template = u"""
+            {% load bookmarks_tags %}
+            {% bookmarks using key as bookmarks %}
+        """
+        context_dict = {
+            'key': key2,
+        }
+        html, context = self.render(template, context_dict, self.request)
+        bookmarks = list(context['bookmarks'])
+        expected = [bookmark2, bookmark4]
+        self.assertEqual(bookmarks, expected)
+        # getting all bookmarks of instance1 model name and key1
+        template = u"""
+            {% load bookmarks_tags %}
+            {% bookmarks of 'bookmarks.bookmarktestmodel' using mykey as bookmarks %}
+        """
+        context_dict = {
+            'mykey': key1,
+        }
+        html, context = self.render(template, context_dict, self.request)
+        bookmarks = list(context['bookmarks'])
+        expected = [bookmark1, bookmark3]
+        self.assertEqual(bookmarks, expected)
+        # getting all bookmarks of user1 model name
+        template = u"""
+            {% load bookmarks_tags %}
+            {% bookmarks of 'auth.user' as mybookmarks %}
+        """
+        context_dict = {}
+        html, context = self.render(template, context_dict, self.request)
+        bookmarks = list(context['mybookmarks'])
+        expected = [bookmark5]
+        self.assertEqual(bookmarks, expected)
+        # getting all bookmarks of user2, instance1 and key1
+        template = u"""
+            {% load bookmarks_tags %}
+            {% bookmarks of instances.0 by myuser using key as bookmarks %}
+        """
+        context_dict = {
+            'instances': [instance1],
+            'myuser': user2,
+            'key': key1,
+        }
+        html, context = self.render(template, context_dict, self.request)
+        bookmarks = list(context['bookmarks'])
+        expected = [bookmark3]
+        self.assertEqual(bookmarks, expected)
+        # getting all bookmarks with user2 and hardcoded key1 reversed
+        template = u"""
+            {% load bookmarks_tags %}
+            {% bookmarks by user using 'templatetags_bookmark_1' reversed as bookmarks %}
+        """
+        context_dict = {
+            'user': user2,
+        }
+        html, context = self.render(template, context_dict, self.request)
+        bookmarks = list(context['bookmarks'])
+        expected = [bookmark3]
+        self.assertEqual(bookmarks, expected)
+        # getting all bookmarks with unexistent key
+        template = u"""
+            {% load bookmarks_tags %}
+            {% bookmarks using 'wrong_key' as bookmarks %}
+        """
+        context_dict = {}
+        html, context = self.render(template, context_dict, self.request)
+        self.assertFalse(context['bookmarks'])
 
 
 # VIEWS TESTS
 
 class ViewTestCase(unittest.TestCase, BookmarkTestMixin):
-    # TODO
-    pass
+    def setUp(self):
+        # TODO
+        pass
+
+    def tearDown(self):
+        # TODO
+        pass
+
+    def test_bookamrk(self):
+        # TODO
+        pass
+
+    def test_ajax_form(self):
+        # TODO
+        pass
+
+    def test_bookmarked_by(self):
+        # TODO
+        pass
+
+    def test_bookmarkers_for(self):
+        # TODO
+        pass
 
