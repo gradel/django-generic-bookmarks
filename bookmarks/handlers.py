@@ -59,6 +59,7 @@ class Handler(object):
     can_remove_bookmarks = settings.CAN_REMOVE_BOOKMARKS
 
     form_class = forms.BookmarkForm
+    failure_message = u'Invalid data in bookmark form.'
     
     def __init__(self, model, backend):
         self.model = model
@@ -115,6 +116,14 @@ class Handler(object):
         Return the form class that will be used to add or remove bookmarks.
         """
         return self.form_class
+
+    def get_form(self, request, **kwargs):
+        """
+        Return an instance of the form, using given *request*, the backend 
+        currently used by the handler and all given *kwargs*.
+        """
+        form_class = self.get_form_class(request)
+        return form_class(request, self.backend, **kwargs)
                 
     # toggling bookmarks
         
@@ -139,7 +148,7 @@ class Handler(object):
         
     def save(self, request, form):
         """
-        Save the bookamrk to the database.
+        Save the bookmark to the database.
         Must return the new saved bookmark.        
         """
         return form.save()
@@ -173,6 +182,7 @@ class Handler(object):
                 'key': 'the_bookamrk_key',
                 'bookmark_id': bookmark.id,
                 'user_id': <the id of the bookmarker>,
+                'created': <True if bookmark is created, False otherwise>,
             }
         """
         from django.http import HttpResponse
@@ -181,6 +191,7 @@ class Handler(object):
             'key': bookmark.key,
             'bookmark_id': bookmark.id,
             'user_id': bookmark.user_id,
+            'created': created,
         }
         return HttpResponse(json.dumps(data), content_type="application/json")
         
@@ -190,8 +201,8 @@ class Handler(object):
         Return a redirect response.
         """
         from django.shortcuts import redirect
-        next = request.REQUEST.get('next') or request.META.get('HTTP_REFERER') or '/'
-        return redirect(next)
+        return redirect(request.REQUEST.get('next') or 
+            request.META.get('HTTP_REFERER') or '/')
                 
     def response(self, request, bookmark, created):
         """
@@ -200,8 +211,8 @@ class Handler(object):
         Must return a Django http response (usually a redirect, or
         some json if the request is ajax).
         """
-        method = self.ajax_response if request.is_ajax() else self.normal_response
-        return method(request, bookmark, created)
+        mtd = self.ajax_response if request.is_ajax() else self.normal_response
+        return mtd(request, bookmark, created)
         
     def fail(self, request, errors):
         """
@@ -209,7 +220,7 @@ class Handler(object):
         did not validate. Must return a Django http response.
         """
         from django.http import HttpResponseBadRequest
-        return HttpResponseBadRequest('Invalid data in bookmark form.')
+        return HttpResponseBadRequest(self.failure_message)
     
     # receivers
         
@@ -343,14 +354,13 @@ class Registry(object):
             return self._registry[model].pre_save(request, form)
         return False
         
-    def _post_save(self, sender, bookmark, request, **kwargs):
+    def _post_save(self, sender, bookmark, request, created, **kwargs):
         """
         Apply any necessary post-save steps to new bookmarks.
         """
         model = bookmark.content_type.model_class()
         if model in self._registry:
-            return self._registry[model].post_save(request, bookmark,
-                bool(bookmark.pk))
+            return self._registry[model].post_save(request, bookmark, created)
         
             
 # import this instance in your code to use in registering models

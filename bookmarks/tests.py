@@ -5,19 +5,19 @@ from django.contrib.auth.models import User, AnonymousUser
 from django.contrib.contenttypes.models import ContentType
 from django.template import Template, Context
 from django.core.handlers.wsgi import WSGIRequest
+from django.test import client
 
-from bookmarks import settings, exceptions, backends, handlers, forms
+from bookmarks import settings, exceptions, backends, handlers, forms, views
 
-class Request(WSGIRequest):
-    """
-    WSGIRequest wrapper.
-    """
-    def __init__(self, environ, user=None, method='get'):
-        environ['REQUEST_METHOD'] = method
-        if 'wsgi.input' not in environ:
-            environ['wsgi.input'] = None
-        super(Request, self).__init__(environ)
+class RequestFactory(client.RequestFactory):
+    def __init__(self, user=None, *args, **kwargs):
+        super(RequestFactory, self).__init__(*args, **kwargs)
         self.user = user or AnonymousUser()
+
+    def request(self, *args, **kwargs):
+        wsgi_request = super(RequestFactory, self).request(*args, **kwargs)
+        wsgi_request.user = self.user
+        return wsgi_request
 
 
 class BookmarkTestModel(models.Model):
@@ -48,11 +48,8 @@ class BookmarkTestMixin(object):
         self.assertEqual(bookmark.content_object, instance)
         self.assertEqual(bookmark.key, key)
 
-    def get_content_type(self, model_or_instance):
-        return ContentType.objects.get_for_model(model_or_instance)
-
     def get_request(self, user=None, **kwargs):
-        return Request(kwargs, user)
+        return RequestFactory(user, **kwargs).get('/')
 
     def clean(self):
         BookmarkTestModel.objects.all().delete()
@@ -255,9 +252,8 @@ class FormTestCase(unittest.TestCase, BookmarkTestMixin):
         self.clean()
 
     def _get_initial(self, instance, key):
-        content_type = self.get_content_type(instance)
         return {
-            'content_type_id': content_type.pk,
+            'model':str(instance._meta),
             'object_id': str(instance.pk),
             'key': key,
         }
@@ -619,28 +615,87 @@ class TemplatetagsTestCase(unittest.TestCase, BookmarkTestMixin):
 
 # VIEWS TESTS
 
-class ViewTestCase(unittest.TestCase, BookmarkTestMixin):
+class BookmarkViewTestCase(unittest.TestCase, BookmarkTestMixin):
     def setUp(self):
-        # TODO
-        pass
+        handlers.library.register(BookmarkTestModel)
+        self.handler = handlers.library.get_handler(BookmarkTestModel)
+        self.backend = self.handler.backend
 
     def tearDown(self):
-        # TODO
-        pass
+        self.clean()
+        handlers.library.unregister(BookmarkTestModel)
 
-    def test_bookamrk(self):
-        # TODO
-        pass
+    def get_data(self, instance, key=None):
+        return {
+            'model':str(instance._meta),
+            'object_id': str(instance.pk),
+            'key': key or self.handler.default_key,
+        }
 
-    def test_ajax_form(self):
-        # TODO
-        pass
+    def get_post_request(self, user=None, post_data=None, url='/', **kwargs):
+        return RequestFactory(user, **kwargs).post(url, post_data or {})
 
-    def test_bookmarked_by(self):
-        # TODO
-        pass
+    def test_success(self):
+        user = self.create_user('view_bookmark_success')
+        instance = self.create_instance('view_bookmark_success')
+        http_referer = '/bookmark/success/'
+        request = self.get_post_request(user, self.get_data(instance), 
+            HTTP_REFERER=http_referer)
+        response = views.bookmark(request)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response['location'], http_referer)
+        exists = self.backend.exists(user, instance, self.handler.default_key)
+        self.assertTrue(exists)
 
-    def test_bookmarkers_for(self):
-        # TODO
-        pass
+    def test_fail_invalid_method(self):
+        user = self.create_user('view_bookmark_success')
+        request = self.get_request(user)
+        response = views.bookmark(request)
+        self.assertEqual(response.status_code, 403)
+    
+    def test_fail_invalid_model(self):
+        user = self.create_user('view_bookmark_success')
+        instance = self.create_instance('view_bookmark_success')
+        data = self.get_data(instance)
+        data['model'] = 'invalid.model'
+        request = self.get_post_request(user, data)
+        response = views.bookmark(request)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.content, views.ERRORS['model'])
 
+    def test_fail_invalid_instance(self):
+        user = self.create_user('view_bookmark_success')
+        instance = self.create_instance('view_bookmark_success')
+        data = self.get_data(instance)
+        data['object_id'] = str(int(data['object_id']) + 1)
+        request = self.get_post_request(user, data)
+        response = views.bookmark(request)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.content, self.handler.failure_message)
+
+    def test_fail_invalid_key(self):
+        user = self.create_user('view_bookmark_success')
+        instance = self.create_instance('view_bookmark_success')
+        data = self.get_data(instance)
+        data['key'] = 'invalid_key'
+        request = self.get_post_request(user, data)
+        response = views.bookmark(request)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.content, views.ERRORS['key'])
+
+    def test_fail_not_handled(self):
+        user = self.create_user('view_bookmark_success')
+        instance = self.create_instance('view_bookmark_success')
+        handlers.library.unregister(BookmarkTestModel)
+        request = self.get_post_request(user, self.get_data(instance))
+        response = views.bookmark(request)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.content, views.ERRORS['handler'])
+        handlers.library.register(BookmarkTestModel)
+
+    def test_fail_not_authenticated(self):
+        instance = self.create_instance('view_bookmark_success')
+        request = self.get_post_request(None, self.get_data(instance))
+        response = views.bookmark(request)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.content, self.handler.failure_message)

@@ -200,8 +200,14 @@ class BookmarkFormNode(BaseNode):
         if not handler.allow_key(request, instance, key):
             return u''
 
-        # retreiving form
-        form = utils.create_form(request, handler, instance, key)
+        # creating form
+        data = {
+            'model': str(instance._meta),
+            'object_id': str(instance.pk),
+            'key': key,
+        }
+        form = handler.get_form(request, data=data)
+        
         if self.varname is None:
             # rendering the form
             ctx = template.RequestContext(request, 
@@ -242,7 +248,7 @@ class AJAXBookmarkFormNode(BookmarkFormNode):
     def get_template_context(self, context, form, instance, key):
         ctx = super(AJAXBookmarkFormNode, self).get_template_context(
             context, form, instance, key)
-        template = u'bookmarkform_%(key)s-%(content_type_id)d-%(object_id)s'
+        template = u'bookmarkform_%(key)s-%(model)s-%(object_id)s'
         url = reverse('bookmarks_ajax_form')
         querydict = http.QueryDict('', mutable=True)
         querydict.update(form.data)
