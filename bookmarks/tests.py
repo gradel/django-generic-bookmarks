@@ -640,11 +640,18 @@ class BookmarkViewTestCase(unittest.TestCase, BookmarkTestMixin):
         http_referer = '/bookmark/success/'
         request = self.get_post_request(user, self.get_data(instance), 
             HTTP_REFERER=http_referer)
+        # adding bookmark
         response = views.bookmark(request)
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response['location'], http_referer)
         exists = self.backend.exists(user, instance, self.handler.default_key)
         self.assertTrue(exists)
+        # removing bookmark
+        response = views.bookmark(request)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response['location'], http_referer)
+        exists = self.backend.exists(user, instance, self.handler.default_key)
+        self.assertFalse(exists)
 
     def test_fail_invalid_method(self):
         user = self.create_user('view_bookmark_success')
