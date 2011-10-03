@@ -10,6 +10,9 @@ ERRORS = {
 }
 
 def bookmark(request):
+    """
+    Add or remove a bookmark based on POST data.
+    """
     if request.method == 'POST':
         
         # getting handler
@@ -68,5 +71,8 @@ def bookmark(request):
 
 
 def ajax_form(request):
-    # TODO
+    """
+    Called by *ajax_bookmark_form* templatetag, this view accepts AJAX
+    requests and returns the bookmark form html fragment.
+    """
     pass
