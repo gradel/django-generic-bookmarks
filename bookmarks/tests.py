@@ -4,7 +4,6 @@ from django.db import models
 from django.contrib.auth.models import User, AnonymousUser
 from django.contrib.contenttypes.models import ContentType
 from django.template import Template, Context
-from django.core.handlers.wsgi import WSGIRequest
 from django.test import client
 
 from bookmarks import settings, exceptions, backends, handlers, forms, views
