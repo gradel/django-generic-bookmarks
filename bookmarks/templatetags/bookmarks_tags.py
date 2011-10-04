@@ -187,7 +187,7 @@ class BookmarkFormNode(BaseNode):
     def render(self, context):
         # user validation
         request = context['request']
-        if request.user.is_anonymous():
+        if request.user.is_anonymous() and self.varname is not None:
             return u''
 
         # instance and handler
