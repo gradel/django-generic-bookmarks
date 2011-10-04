@@ -47,8 +47,8 @@ class BookmarkTestMixin(object):
         self.assertEqual(bookmark.content_object, instance)
         self.assertEqual(bookmark.key, key)
 
-    def get_request(self, user=None, **kwargs):
-        return RequestFactory(user, **kwargs).get('/')
+    def get_request(self, user=None, url='/', **kwargs):
+        return RequestFactory(user, **kwargs).get(url)
 
     def clean(self):
         BookmarkTestModel.objects.all().delete()
@@ -705,3 +705,160 @@ class BookmarkViewTestCase(unittest.TestCase, BookmarkTestMixin):
         response = views.bookmark(request)
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.content, self.handler.failure_message)
+
+
+try:
+    from bookmarks.views.generic import BookmarksForView, BookmarksByView
+except ImportError:
+    print "Skipping class based views tests: unsupported by current Django version."
+else:
+
+    class ClassBasedViewTextMixin(BookmarkTestMixin):
+        def get_view(self, **kwargs):
+            return self.view_class.as_view(**kwargs)
+
+        def create_bookmarks(self):
+            self.user1 = self.create_user('class_based_test1')
+            self.user2 = self.create_user('class_based_test2')
+            self.instance1 = self.create_instance('class_based_test1')
+            self.instance2 = self.create_instance('class_based_test2')
+            self.instance3 = self.create_instance('class_based_test3')
+            self.key1 = 'class_based_test1'
+            self.key2 = 'class_based_test2'
+            self.bookmark1 = self.backend.add(self.user1, self.instance1, self.key1)
+            self.bookmark2 = self.backend.add(self.user1, self.instance2, self.key1)
+            self.bookmark3 = self.backend.add(self.user1, self.instance1, self.key2)
+            self.bookmark4 = self.backend.add(self.user1, self.instance3, self.key2)
+            self.bookmark5 = self.backend.add(self.user2, self.instance1, self.key1)
+
+        def get_data_from_response(self, response):
+            return (
+                response.context_data['object'], 
+                list(response.context_data['bookmarks'])
+            )
+
+
+    class BookmarksForViewTestCase(unittest.TestCase, ClassBasedViewTextMixin):
+        view_class = BookmarksForView
+
+        def setUp(self):
+            self.backend = backends.ModelBackend()
+
+        def tearDown(self):
+            self.clean()
+
+        def test_normal(self):
+            self.create_bookmarks()
+            view = self.get_view(model=BookmarkTestModel)
+            request = self.get_request()
+            response = view(request, pk=self.instance1.id)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.template_name, 
+                ['bookmarks/bookmarktestmodel_bookmarks.html'])
+
+            instance, bookmarks = self.get_data_from_response(response)
+            self.assertEqual(instance, self.instance1)
+            expected = [self.bookmark5, self.bookmark3, self.bookmark1]
+            self.assertEqual(bookmarks, expected)
+
+        def test_queryset_template_not_reversed(self):
+            self.create_bookmarks()
+            queryset = BookmarkTestModel.objects.exclude(pk=self.instance2.pk)
+            view = self.get_view(queryset=queryset, template_name='test.html',
+                reversed_order=False)
+            request = self.get_request()
+            response = view(request, pk=self.instance1.id)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.template_name, 
+                ['test.html', 'bookmarks/bookmarktestmodel_bookmarks.html'])
+
+            instance, bookmarks = self.get_data_from_response(response)
+            self.assertEqual(instance, self.instance1)
+            expected = [self.bookmark1, self.bookmark3, self.bookmark5]
+            self.assertEqual(bookmarks, expected)
+
+        def test_key(self):
+            self.create_bookmarks()
+            view = self.get_view(model=BookmarkTestModel, key=self.key2)
+            request = self.get_request()
+            response = view(request, pk=self.instance1.id)
+            self.assertEqual(response.status_code, 200)
+
+            instance, bookmarks = self.get_data_from_response(response)
+            self.assertEqual(instance, self.instance1)
+            expected = [self.bookmark3]
+            self.assertEqual(bookmarks, expected)
+
+        def test_empty(self):
+            self.create_bookmarks()
+            view = self.get_view(model=BookmarkTestModel, key=self.key2)
+            request = self.get_request()
+            response = view(request, pk=self.instance2.id)
+            self.assertEqual(response.status_code, 200)
+
+            instance, bookmarks = self.get_data_from_response(response)
+            self.assertEqual(instance, self.instance2)
+            self.assertFalse(bookmarks)
+
+
+    class BookmarksByViewTestCase(unittest.TestCase, ClassBasedViewTextMixin):
+        view_class = BookmarksByView
+
+        def setUp(self):
+            self.backend = backends.ModelBackend()
+
+        def tearDown(self):
+            self.clean()
+
+        def test_normal(self):
+            self.create_bookmarks()
+            view = self.get_view()
+            request = self.get_request()
+            response = view(request, pk=self.user1.id)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.template_name, 
+                ['auth/user_bookmarks.html'])
+
+            instance, bookmarks = self.get_data_from_response(response)
+            self.assertEqual(instance, self.user1)
+            expected = [self.bookmark4, self.bookmark3, self.bookmark2, self.bookmark1]
+            self.assertEqual(bookmarks, expected)
+
+        def test_queryset_template_not_reversed(self):
+            self.create_bookmarks()
+            queryset = User.objects.exclude(pk=self.user2.pk)
+            view = self.get_view(queryset=queryset, template_name='test.html',
+                reversed_order=False)
+            request = self.get_request()
+            response = view(request, pk=self.user1.id)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.template_name, 
+                ['test.html', 'auth/user_bookmarks.html'])
+
+            instance, bookmarks = self.get_data_from_response(response)
+            self.assertEqual(instance, self.user1)
+            expected = [self.bookmark1, self.bookmark2, self.bookmark3, self.bookmark4]
+            self.assertEqual(bookmarks, expected)
+
+        def test_key(self):
+            self.create_bookmarks()
+            view = self.get_view(model=User, key=self.key1)
+            request = self.get_request()
+            response = view(request, pk=self.user1.id)
+            self.assertEqual(response.status_code, 200)
+
+            instance, bookmarks = self.get_data_from_response(response)
+            self.assertEqual(instance, self.user1)
+            expected = [self.bookmark2, self.bookmark1]
+            self.assertEqual(bookmarks, expected)
+
+        def test_empty(self):
+            self.create_bookmarks()
+            view = self.get_view(key=self.key2)
+            request = self.get_request()
+            response = view(request, pk=self.user2.id)
+            self.assertEqual(response.status_code, 200)
+
+            instance, bookmarks = self.get_data_from_response(response)
+            self.assertEqual(instance, self.user2)
+            self.assertFalse(bookmarks)
