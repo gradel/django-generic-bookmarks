@@ -1,11 +1,16 @@
 {% if form %}
-    <form action="{% url bookmarks_bookmark %}" method="post" accept-charset="UTF-8">
-        {% csrf_token %}
-        {{ form }}
-        {% if user.is_authenticated %}
-            <input type="submit" value="{% if form.bookmark_exist %}remove{% else %}add{% endif %}" />
-        {% else %}
-            <a href="{{ login_url }}?{{ next }}={{ request.get_full_path }}">add</a>
-        {% endif %}
-    </form>
+    {% if user.is_authenticated %}
+        <form action="{% url bookmarks_bookmark %}" method="post" accept-charset="UTF-8" class="bookmarks_form">
+            {% csrf_token %}
+            {{ form }}
+            {% with form.bookmark_exists as exists %}
+                {# another hidden input is created to handle jaavscript submit event #}
+                <input type="submit" value="add"{% if exists %} style="display: none;"{% endif %}/>
+                <input type="submit" value="remove"{% if not exists %} style="display: none;"{% endif %}/>
+            {% endwith %}                
+            <span class="error" style="display: none;">Error during process</span>
+        </form>
+    {% else %}
+        <a href="{{ login_url }}?{{ next }}={{ request.get_full_path }}">add</a>
+    {% endif %}
 {% endif %}

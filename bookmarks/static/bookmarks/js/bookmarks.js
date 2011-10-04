@@ -32,6 +32,23 @@
         }
     });
     $(document).ready(function() {
-        // TODO
+        $('.bookmarks_form').submit(function() {
+            var form = $(this);
+            // toggle labels
+            form.find('input[type=submit]').toggle();
+            var values = {};
+            form.find(':input').each(function() {
+                values[this.name] = $(this).val();
+            });
+            // submitting form using ajax
+            $.ajax({  
+                type: "POST",  
+                url: form.attr('action'),  
+                data: values,  
+                error: function() {
+                    form.find('.error').show();
+                }
+            });
+        });
     });
 })(jQuery);

@@ -170,8 +170,10 @@ def bookmark_form(parser, token):
 class BookmarkFormNode(BaseNode):
 
     template_name = 'bookmarks/form.html'
+    override_template_name = 'bookmark_form.html'
 
-    def get_template_context(self, context, form, instance, key):
+    @classmethod
+    def get_template_context(cls, request, form, instance, key):
         """
         Return the template context: used only when the *as variable* 
         argument is not used in templatetag invocation.
@@ -207,13 +209,13 @@ class BookmarkFormNode(BaseNode):
             'key': key,
         }
         form = handler.get_form(request, data=data)
-        
+
         if self.varname is None:
             # rendering the form
             ctx = template.RequestContext(request, 
                 self.get_template_context(context, form, instance, key))
-            templates = utils.get_templates(instance, 'bookmark_form.html',
-                default=self.template_name)
+            templates = utils.get_templates(instance, 
+                self.override_template_name, default=self.template_name)
             return template.loader.render_to_string(templates, ctx)
         else:
             # form as template variable
@@ -245,9 +247,10 @@ def ajax_bookmark_form(parser, token):
 class AJAXBookmarkFormNode(BookmarkFormNode):
     template_name = 'bookmarks/ajax_form.html'
 
-    def get_template_context(self, context, form, instance, key):
-        ctx = super(AJAXBookmarkFormNode, self).get_template_context(
-            context, form, instance, key)
+    @classmethod
+    def get_template_context(cls, request, form, instance, key):
+        ctx = super(AJAXBookmarkFormNode, cls).get_template_context(
+            request, form, instance, key)
         template = u'bookmarkform_%(key)s-%(model)s-%(object_id)s'
         url = reverse('bookmarks_ajax_form')
         querydict = http.QueryDict('', mutable=True)

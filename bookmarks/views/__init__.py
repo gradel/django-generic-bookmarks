@@ -1,12 +1,16 @@
 from django.db.models import get_model
+from django.shortcuts import render_to_response
+from django.template import RequestContext
 from django import http
 
-from bookmarks import handlers, signals
+from bookmarks import handlers, signals, utils
+from bookmarks.templatetags import bookmarks_tags
 
 ERRORS = {
     'model': u'Invalid model.',
     'handler': u'Unregistered model.',
     'key': u'Invalid key.',
+    'form': u'Invalid form data.',
 }
 
 def bookmark(request):
@@ -16,7 +20,7 @@ def bookmark(request):
     if request.method == 'POST':
         
         # getting handler
-        model_name = request.POST.get('model')
+        model_name = request.POST.get('model', u'')
         model = get_model(*model_name.split('.'))
         if model is None:
             # invalid model -> bad request
@@ -48,7 +52,7 @@ def bookmark(request):
             for receiver, response in responses:
                 if response == False:
                     return http.HttpResponseBadRequest(
-                        'Receiver %r killed the bookmark process' % 
+                        u'Receiver %r killed the bookmark process' % 
                         receiver.__name__)
             
             # adding or removing the bookmark
@@ -70,9 +74,52 @@ def bookmark(request):
     return http.HttpResponseForbidden('Forbidden.')
 
 
-def ajax_form(request):
+def ajax_form(request, extra_context=None,
+    template=bookmarks_tags.BookmarkFormNode.template_name,
+    override_template=bookmarks_tags.BookmarkFormNode.override_template_name):
     """
     Called by *ajax_bookmark_form* templatetag, this view accepts AJAX
     requests and returns the bookmark form html fragment.
+
+    The template used to render the context is the same as the one
+    used by *bookmark_form* templatetag.
     """
-    pass
+    if request.is_ajax():
+        # getting handler
+        model_name = request.GET.get('model', u'')
+        model = get_model(*model_name.split('.'))
+        if model is None:
+            # invalid model -> bad request
+            return http.HttpResponseBadRequest(ERRORS['model'])
+        handler = handlers.library.get_handler(model)
+        if handler is None:
+            # bad or unregistered model -> bad request
+            return http.HttpResponseBadRequest(ERRORS['handler'])
+
+        # getting form
+        form = handler.get_form(request, data=request.GET)
+        if form.is_valid():
+            instance = form.instance()
+
+            # validating the bookmark key
+            key = handler.get_key(request, instance, form.cleaned_data['key'])
+            if not handler.allow_key(request, instance, key):
+                return http.HttpResponseBadRequest(ERRORS['key'])
+
+            # context and template
+            context = bookmarks_tags.BookmarkFormNode.get_template_context(
+                request, form, instance, key)
+            if extra_context is not None:
+                context.update(extra_context)
+            template = utils.get_templates(instance, override_template,
+                default=template)
+                
+            # output
+            return render_to_response(template, context, 
+                context_instance=RequestContext(request))
+
+        # form is not valid -> bad request
+        return http.HttpResponseBadRequest(ERRORS['form'])
+        
+    # only answer AJAX requests
+    return http.HttpResponseForbidden('Forbidden.')
