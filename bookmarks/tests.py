@@ -7,6 +7,7 @@ from django.template import Template, Context
 from django.test import client
 
 from bookmarks import settings, exceptions, backends, handlers, forms, views
+from bookmarks.models import annotate_bookmarks
 
 class RequestFactory(client.RequestFactory):
     def __init__(self, user=None, *args, **kwargs):
@@ -862,3 +863,54 @@ else:
             instance, bookmarks = self.get_data_from_response(response)
             self.assertEqual(instance, self.user2)
             self.assertFalse(bookmarks)
+
+
+# MODEL TESTS
+
+class ModelsTestCase(unittest.TestCase, BookmarkTestMixin):
+    def setUp(self):
+        self.backend = backends.ModelBackend()
+        self.user1 = self.create_user('models_test1')
+        self.user2 = self.create_user('models_test2')
+        self.instance1 = self.create_instance('models_test1')
+        self.instance2 = self.create_instance('models_test2')
+        self.instance3 = self.create_instance('models_test3')
+        self.instance4 = self.create_instance('models_test4')
+        self.key1 = 'models_test1'
+        self.key2 = 'models_test2'
+        self.backend.add(self.user1, self.instance2, self.key1)
+        self.backend.add(self.user1, self.instance4, self.key1)
+        self.backend.add(self.user1, self.instance2, self.key2)
+        self.backend.add(self.user1, self.instance3, self.key2)
+
+    def tearDown(self):
+        self.clean()
+
+    def annotate(self, *args, **kwargs):
+        return list(annotate_bookmarks(*args, **kwargs))
+
+    def assertAttrIndexTrue(self, objects, indexes, attr_name='is_bookmarked'):
+        for num, i in enumerate(objects):
+            attr = getattr(i, attr_name)
+            if num in indexes:
+                self.assertTrue(attr)
+            else:
+                self.assertFalse(attr)
+
+    def test_key1(self):
+        objects = self.annotate(BookmarkTestModel, self.key1, self.user1)
+        self.assertAttrIndexTrue(objects, [1, 3])
+
+    def test_key2_queryset(self):
+        objects = self.annotate(BookmarkTestModel.objects.all(), self.key2, 
+            self.user1)
+        self.assertAttrIndexTrue(objects, [1, 2])
+
+    def test_key1_attr(self):
+        objects = self.annotate(BookmarkTestModel, self.key1, self.user1,
+            attr='test_attr')
+        self.assertAttrIndexTrue(objects, [1, 3], attr_name='test_attr')
+
+    def test_key2_user2(self):
+        objects = self.annotate(BookmarkTestModel, self.key2, self.user2)
+        self.assertAttrIndexTrue(objects, [])

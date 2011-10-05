@@ -49,4 +49,3 @@ if the instance of MongoDB is executed in localhost without authentication
 you can just write::
 
     GENERIC_BOOKMARKS_MONGODB = {"NAME": "bookmarks"}
-

@@ -82,6 +82,7 @@ def annotate_bookmarks(queryset_or_model, key, user, attr='is_bookmarked'):
             if article.has_a_bookmark:
                 print u"Article %s is favourited by user %s" (article, myuser)
     """
+    from bookmarks import utils
     # getting the queryset
     if isinstance(queryset_or_model, models.base.ModelBase):
         queryset = queryset_or_model.objects.all()
@@ -89,7 +90,7 @@ def annotate_bookmarks(queryset_or_model, key, user, attr='is_bookmarked'):
         queryset = queryset_or_model
     # preparing arguments for *extra* query
     opts = queryset.model._meta
-    content_type = managers.get_content_type_for_model(queryset.model)
+    content_type = utils.get_content_type_for_model(queryset.model)
     mapping = {
         'bookmark_table': Bookmark._meta.db_table,
         'model_table': opts.db_table,
@@ -104,7 +105,7 @@ def annotate_bookmarks(queryset_or_model, key, user, attr='is_bookmarked'):
     ${bookmark_table}.user_id = %s AND
     ${bookmark_table}.key = %s
     """
-    select = {score: string.Template(template).substitute(mapping)}
+    select = {attr: string.Template(template).substitute(mapping)}
     return queryset.extra(select=select, select_params=[user.pk, key])
     
 

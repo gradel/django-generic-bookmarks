@@ -35,7 +35,7 @@
         $('.bookmarks_form').submit(function() {
             var form = $(this);
             // toggle labels
-            form.find('input[type=submit]').toggle();
+            form.find('.bookmarks_toggle').toggle();
             var values = {};
             form.find(':input').each(function() {
                 values[this.name] = $(this).val();
