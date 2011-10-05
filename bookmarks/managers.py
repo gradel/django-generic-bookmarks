@@ -110,7 +110,7 @@ class BookmarksManager(models.Manager):
     
     def remove(self, user, content_object, key):
         """
-        Add a bookmark, given the user, the model instance and the key.
+        Remove a bookmark, given the user, the model instance and the key.
         
         Raise a *Bookmark.DoesNotExist* exception if that kind of 
         bookmark is not present in the db.

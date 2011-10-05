@@ -1,6 +1,8 @@
 from django.conf import settings
 
-# default bookmark model (the one shipped with the application)
+# default bookmark model (if None, *bookmarks.backends.ModelBackend* is used)
+# to use MongoDB backend you can just write::
+# GENERIC_BOOKMARKS_BACKEND = 'bookmarks.backends.MongoBackend'
 BACKEND = getattr(settings, 'GENERIC_BOOKMARKS_BACKEND', None)
 
 # default key to use for bookmarks when there is only one bookmark-per-content
@@ -16,12 +18,12 @@ CAN_REMOVE_BOOKMARKS = getattr(settings,
     'GENERIC_BOOKMARKS_CAN_REMOVE_BOOKMARKS', True)
 
 # mongodb backend connection parameters
-# if the instance of Mongodb is executed in localhost without authentication 
+# if the instance of MongoDB is executed in localhost without authentication 
 # you can just write::
 # GENERIC_BOOKMARKS_MONGODB = {"NAME": "bookmarks"}
 MONGODB = getattr(settings, "GENERIC_BOOKMARKS_MONGODB", {
-    "NAME": "", 
-    "USERNAME": "",
-    "PASSWORD": "",
-    "PARAMETERS": {}, 
+    'NAME': '', 
+    'USERNAME': '',
+    'PASSWORD': '',
+    'PARAMETERS': {}, 
 })

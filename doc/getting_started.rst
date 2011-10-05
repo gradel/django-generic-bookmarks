@@ -81,6 +81,60 @@ In the code below we assume that *article* is the *Article* model instance.
 
     {% load bookmarks_tags %}
 
-    {% bookmark_form for myinstance %}
-    
-        
+    {% bookmark_form for article %}
+
+This code snippet just displays a form to add or remove the article
+from user's favourites.
+
+AJAX is also supported using jQuery, e.g.:
+
+.. code-block:: html+django
+
+    {% load bookmarks_tags %}
+
+    <script src="path/to/jquery.js" type="text/javascript"></script>
+    <script src="{{ STATIC_URL }}bookmarks/bookmarks.js" type="text/javascript"></script>
+
+    {% bookmark_form for article %}
+
+It is possible to get the form as a template variable in the current context
+instead of displaying it. This way we can customize the way the form is
+presented, e.g.:
+
+.. code-block:: html+django
+
+    {% bookmark_form for article as form %} {# <-- note the 'as' argument #}
+
+    <script src="path/to/jquery.js" type="text/javascript"></script>
+    <script src="{{ STATIC_URL }}bookmarks/bookmarks.js" type="text/javascript"></script>
+
+    {% if form %}
+        {% if user.is_authenticated %}
+            <form action="{% url bookmarks_bookmark %}" method="post" class="bookmarks_form">
+                {% csrf_token %}
+                {{ form }}
+                {% with form.bookmark_exists as exists %}
+                    {# another hidden input is created to handle javascript submit event #}
+                    <input type="submit" value="add"{% if exists %} style="display: none;"{% endif %}/>
+                    <input type="submit" value="remove"{% if not exists %} style="display: none;"{% endif %}/>
+                {% endwith %}                
+                <span class="error" style="display: none;">Error during process</span>
+            </form>
+        {% else %}
+            Handle anonymous users.
+        {% endif %}
+    {% endif %}
+
+This application provides other templatetags (e.g.: for bookmarks retreival) 
+and the ``bookmark_form`` has other useful options, explained in detail in: 
+:doc:`templatetags_api`.
+
+Note that the form template variable will be *None* if:
+    - the user is not authenticated
+    - the instance is not bookmarkable
+    - the key is not allowed
+
+What is a key? It is a way to define different kind of bookmarks.
+For example, a user can add the article to his liked or to his disliked, and
+so we need a key to tell the system what he is doing.
+But this is an argoument for the next section: :doc:`handlers`.

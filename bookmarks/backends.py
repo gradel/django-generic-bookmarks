@@ -56,7 +56,7 @@ class BaseBackend(object):
         """
         Must return all bookmarks corresponding to given *kwargs*.
 
-        The *kwargs* can be:
+        The *kwargs* keys can be:
             - user: Django user object or pk
             - instance: a Django model instance
             - content_type: a Django ContentType instance or pk
@@ -92,8 +92,6 @@ class ModelBackend(BaseBackend):
     Bookmarks backend based on Django models.
 
     This is used by default if no other backend is specified.
-    
-    Users may want to subclass this backend to customize things.
     """
     def get_model(self):
         return models.Bookmark

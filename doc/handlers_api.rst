@@ -1,11 +1,13 @@
-from django.db.models.base import ModelBase
-from django.db.models.signals import pre_delete
-from django.contrib.contenttypes.models import ContentType
+Handlers reference
+==================
 
-from bookmarks import settings, backends, forms, exceptions, signals
+.. py:module:: bookmarks.handlers
 
-class Handler(object):
-    """
+Default handler
+~~~~~~~~~~~~~~~
+
+.. py:class:: Handler
+
     Encapsulates content bookmarking options for a given model.
     
     This class can be subclassed to specify different behaviour and options
@@ -52,31 +54,9 @@ class Handler(object):
     
     See the method's docstrings for a description of how each method is
     used during the bookmarking process.
-    """
-    default_key = settings.DEFAULT_KEY
-    allowed_keys = [settings.DEFAULT_KEY]
-    next_querystring_key = settings.NEXT_QUERYSTRING_KEY
-    can_remove_bookmarks = settings.CAN_REMOVE_BOOKMARKS
 
-    form_class = forms.BookmarkForm
-    failure_message = u'Invalid data in bookmark form.'
-    
-    def __init__(self, model, backend):
-        self.model = model
-        self.backend = backend
+    .. py:method:: get_key(self, request, instance, key=None)
 
-    def __getattr__(self, attr):
-        """
-        Delegate some methods to the underlying backend.
-        """
-        if attr in ('get', 'filter', 'exists'):
-            return getattr(self.backend, attr)
-        raise AttributeError
-        
-    # key management
-            
-    def get_key(self, request, instance, key=None):
-        """
         Return the bookmark key to be used to save the bookmark.
         
         Subclasses can return different keys based on the *request*, on
@@ -88,11 +68,9 @@ class Handler(object):
         
             def get_key(self, request, instance):
                 return 'staff' if request.user.is_superuser else 'normal'
-        """
-        return key or self.default_key
-        
-    def allow_key(self, request, instance, key):
-        """
+
+    .. py:method:: allow_key(self, request, instance, key)
+
         This method is called when the user tries to bookmark an object 
         using the given bookmark *key* (e.g. when the bookmark view is 
         called with POST data).
@@ -106,32 +84,21 @@ class Handler(object):
         
             def allow_key(self, request, instance, key):
                 return key in ('main', 'other')
-                
-        By default this method allows keys listed in *self.allowed_keys*. 
-        """
-        return key in self.allowed_keys
-    
-    # form management
 
-    def get_form_class(self, request):
-        """
+        By default this method allows keys listed in *self.allowed_keys*. 
+
+    .. py:method:: get_form_class(self, request)
+
         Return the form class that will be used to add or remove bookmarks.
         Default is *self.form_class*.
-        """
-        return self.form_class
 
-    def get_form(self, request, **kwargs):
-        """
+    .. py:method:: get_form(self, request, **kwargs)
+
         Return an instance of the form, using given *request*, the backend 
         currently used by the handler and all given *kwargs*.
-        """
-        form_class = self.get_form_class(request)
-        return form_class(request, self.backend, **kwargs)
-                
-    # toggling bookmarks
-        
-    def pre_save(self, request, form):
-        """
+
+    .. py:method:: pre_save(self, request, form)
+
         Called just before the bookmark is added or removed, this method 
         takes the *request* and the *form* instance.
         
@@ -145,19 +112,14 @@ class Handler(object):
         It's up to the developer if override this method or just connect
         another listener to the signal: the bookmarking process is killed 
         if just one receiver returns False.
-        """
-        if form.bookmark_exists() and not self.can_remove_bookmarks:
-            return False
-        
-    def save(self, request, form):
-        """
+
+    .. py:method:: save(self, request, form)
+
         Save the bookmark to the database.
-        Must return the saved bookmark.        
-        """
-        return form.save()
-        
-    def post_save(self, request, bookmark, added):
-        """
+        Must return the saved bookmark. 
+
+    .. py:method:: post_save(self, request, bookmark, added)
+
         Called just after a bookmark is added or removed.
 
         The given arguments are the current *request*, the just added
@@ -171,13 +133,9 @@ class Handler(object):
         another listener to the signal.
         
         By default, this method does noting.
-        """
-        pass
-        
-    # view callbacks
-    
-    def ajax_response(self, request, bookmark, created):
-        """
+
+    .. py:method:: ajax_response(self, request, bookmark, created)
+
         Called by *self.response* when the request is ajax.
         Return a JSON reponse containing::
         
@@ -187,28 +145,14 @@ class Handler(object):
                 'user_id': <the id of the bookmarker>,
                 'created': <True if bookmark is created, False otherwise>,
             }
-        """
-        from django.http import HttpResponse
-        from django.utils import simplejson as json
-        data = {
-            'key': bookmark.key,
-            'bookmark_id': bookmark.id,
-            'user_id': bookmark.user_id,
-            'created': created,
-        }
-        return HttpResponse(json.dumps(data), content_type="application/json")
-        
-    def normal_response(self, request, bookmark, created):
-        """
+
+    .. py:method:: normal_response(self, request, bookmark, created)
+
         Called by *success_response* when the request is not ajax.
         Return a redirect response.
-        """
-        from django.shortcuts import redirect
-        return redirect(request.REQUEST.get('next') or 
-            request.META.get('HTTP_REFERER') or '/')
-                
-    def response(self, request, bookmark, created):
-        """
+
+    .. py:method:: response(self, request, bookmark, created)
+
         Callback used by the bookmarking views, called when the user 
         successfully added or removed a bookmark. 
 
@@ -217,33 +161,26 @@ class Handler(object):
 
         The real job is done in the *ajax_response* and *normal_response*
         methods above.
-        """
-        mtd = self.ajax_response if request.is_ajax() else self.normal_response
-        return mtd(request, bookmark, created)
-        
-    def fail(self, request, errors):
-        """
+
+    .. py:method:: fail(self, request, errors)
+
         Callback used by the bookmarking views, called when bookmark form 
         did not validate. Must return a Django http response.
-        """
-        from django.http import HttpResponseBadRequest
-        return HttpResponseBadRequest(self.failure_message)
-    
-    # receivers
-        
-    def remove_all_for(self, sender, instance, **kwargs):
-        """
+
+    .. py:method:: remove_all_for(self, sender, instance, **kwargs)
+
         The target object *instance* of the model *sender*, is being deleted,
         so we must delete all the bookmarks related to that instance.
         
         This receiver is usually connected by the bookmark registry, when 
         a handler is registered.
-        """
-        self.backend.remove_all_for(instance)
-            
-     
-class Registry(object):
-    """
+
+
+Library
+~~~~~~~
+
+.. py:class:: Registry
+
     Registry that stores the handlers for each content type bookmarks system.
 
     An instance of this class will maintain a list of one or more models 
@@ -261,37 +198,9 @@ class Registry(object):
     For convenience, both *register* and *unregister* can also accept a list 
     of model classes in place of a single model; this allows easier 
     registration of multiple models with the same *Handler* class.
-    """
-    def __init__(self):
-        self._registry = {}
-        self.backend = backends.get_backend()
-        self._connect(self.backend.get_model())
-        
-    def _connect(self, model):
-        """
-        Pre and post (add or remove) bookmark signals.
-        """
-        signals.bookmark_pre_save.connect(self._pre_save, sender=model)
-        signals.bookmark_post_save.connect(self._post_save, sender=model)
-        
-    def _connect_model_signals(self, model, handler):
-        """
-        Connect the *pre_delete* signal sent by given *model* to
-        the *handler* receiver.
-        """
-        pre_delete.connect(handler.remove_all_for, sender=model)
-    
-    def _get_handler_instance(self, model, handler_class, options):
-        """
-        Return an handler instance for the given *model*.
-        """
-        handler = handler_class(model, self.backend)
-        for k, v in options.items():
-            setattr(handler, k, v)
-        return handler
 
-    def register(self, model_or_iterable, handler_class=None, **kwargs):
-        """
+    .. py:method:: register(self, model_or_iterable, handler_class=None, **kwargs)
+
         Register a model or a list of models for bookmark handling, using a 
         particular *handler_class*, e.g.::
         
@@ -312,63 +221,15 @@ class Registry(object):
 
         Raise *AlreadyHandled* if any of the models are already registered.
         """
-        if handler_class is None:
-            handler_class = Handler
-        if isinstance(model_or_iterable, ModelBase):
-            model_or_iterable = [model_or_iterable]
-        for model in model_or_iterable:
-            if model in self._registry:
-                raise exceptions.AlreadyHandled(
-                    "The model '%s' is already being handled" % 
-                    model._meta.module_name)
-            handler = self._get_handler_instance(model, handler_class, kwargs)
-            self._registry[model] = handler
-            self._connect_model_signals(model, handler)
-        
-    def unregister(self, model_or_iterable):
-        """
+
+    .. py:method:: unregister(self, model_or_iterable)
+
         Remove a model or a list of models from the list of models that will
         be handled.
 
         Raise *NotHandled* if any of the models are not currently registered.
-        """
-        if isinstance(model_or_iterable, ModelBase):
-            model_or_iterable = [model_or_iterable]
-        for model in model_or_iterable:
-            if model not in self._registry:
-                raise exceptions.NotHandled(
-                    "The model '%s' is not currently being handled" % 
-                    model._meta.module_name)
-            del self._registry[model]
-            
-    def get_handler(self, model_or_instance):
-        """
+
+    .. py:method:: get_handler(self, model_or_instance)
+
         Return the handler for given model or model instance.
         Return None if model is not registered.
-        """
-        if isinstance(model_or_instance, ModelBase):
-            model = model_or_instance
-        else:
-            model = type(model_or_instance)
-        return self._registry.get(model)
-
-    def _pre_save(self, sender, form, request, **kwargs):
-        """
-        Apply any necessary pre-save steps to bookmarks.
-        """
-        model = type(form.instance())
-        if model in self._registry:
-            return self._registry[model].pre_save(request, form)
-        return False
-        
-    def _post_save(self, sender, bookmark, request, created, **kwargs):
-        """
-        Apply any necessary post-save steps to new bookmarks.
-        """
-        model = bookmark.content_type.model_class()
-        if model in self._registry:
-            return self._registry[model].post_save(request, bookmark, created)
-        
-            
-# import this instance in your code to use in registering models
-library = Registry()

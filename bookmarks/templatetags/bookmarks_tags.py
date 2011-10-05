@@ -133,7 +133,7 @@ def bookmark_form(parser, token):
     If the *varname* is used then it will be a context variable 
     containing the form.
     Otherwise the form is rendered using the first template found in the order
-    that follows:
+    that follows::
 
         bookmarks/[app_name]/[model_name]/[key]/form.html
         bookmarks/[app_name]/[model_name]/form.html
@@ -168,11 +168,21 @@ def bookmark_form(parser, token):
             {% endif %}
         {% endif %}
 
-
     The template variable (or the html) will be None if:
         - the user is not authenticated
         - the instance is not bookmarkable
         - the key is not allowed
+
+    AJAX is also supported using jQuery, e.g.:
+
+    .. code-block:: html+django
+
+        {% load bookmarks_tags %}
+
+        <script src="path/to/jquery.js" type="text/javascript"></script>
+        <script src="{{ STATIC_URL }}bookmarks/bookmarks.js" type="text/javascript"></script>
+
+        {% bookmark_form for article %}
     """
     return BookmarkFormNode(**_parse_args(parser, token, 
         BOOKMARK_FORM_EXPRESSION))
@@ -248,6 +258,8 @@ def ajax_bookmark_form(parser, token):
 
     This is usiful for example when you want to show add/remove
     bookamrk interaction for authenticated users even in a cached template.
+
+    You need to load jQuery before using this templatetag.
     """
     return AJAXBookmarkFormNode(varname=None, **_parse_args(parser, token, 
         AJAX_BOOKMARK_FORM_EXPRESSION))

@@ -10,6 +10,34 @@ from bookmarks import managers
 class Bookmark(models.Model):
     """
     A user's bookmark for a content object.
+
+    This is only used if the current backend stores bookmarks in the database
+    using Django models.
+
+    .. py:attribute:: content_type
+
+        the bookmarked instance content type
+
+    .. py:attribute:: object_id
+
+        the bookmarked instance id
+
+    .. py:attribute:: content_object
+        
+        the bookmarked instance
+
+    .. py:attribute:: key
+
+        the bookmark key
+
+    .. py:attribute:: user
+
+        the user who bookmarked the instance 
+        (as a fk to *django.contrib.auth.models.User*)
+
+    .. py:attribute:: created_at
+
+        the bookmark creation datetime
     """
     content_type = models.ForeignKey(ContentType)
     object_id = models.PositiveIntegerField()
@@ -85,6 +113,10 @@ def annotate_bookmarks(queryset_or_model, key, user, attr='is_bookmarked'):
 class BookmarkedModel(models.Model):
     """
     Mixin for bookmarkable models.
+
+    Models subclassing this abstract model gain a *bookmarks* attribute
+    allowing accessto the reverse generic relation 
+    to the *bookmarks.models.Bookmark*.
     """
     bookmarks = generic.GenericRelation(Bookmark)
     

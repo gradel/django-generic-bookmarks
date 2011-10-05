@@ -40,6 +40,10 @@ class BookmarkForm(forms.Form):
     key = forms.RegexField(regex=r'^[\w.+-]+$', widget=forms.HiddenInput)
 
     def __init__(self, request, backend, *args, **kwargs):
+        """
+        Takes the current *request*, the bookmark's *backend* and all 
+        the normal Django form arguments.
+        """
         super(BookmarkForm, self).__init__(*args, **kwargs)
         self.request = request
         self.backend = backend
@@ -48,7 +52,7 @@ class BookmarkForm(forms.Form):
     def clean(self):
         """
         Check if an instance with current *model* and *object_id* actually 
-        exists in the database, and that the user is authenticated.
+        exists in the database, and validate only if the user is authenticated.
         """
         if self.request.user.is_anonymous():
             raise forms.ValidationError(u'Invalid user.')
