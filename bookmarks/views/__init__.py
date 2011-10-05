@@ -74,9 +74,8 @@ def bookmark(request):
     return http.HttpResponseForbidden('Forbidden.')
 
 
-def ajax_form(request, extra_context=None,
-    template=bookmarks_tags.BookmarkFormNode.template_name,
-    override_template=bookmarks_tags.BookmarkFormNode.override_template_name):
+def ajax_form(request, extra_context=None, 
+    template=bookmarks_tags.BookmarkFormNode.template_name):
     """
     Called by *ajax_bookmark_form* templatetag, this view accepts AJAX
     requests and returns the bookmark form html fragment.
@@ -111,9 +110,8 @@ def ajax_form(request, extra_context=None,
                 request, form, instance, key)
             if extra_context is not None:
                 context.update(extra_context)
-            template = utils.get_templates(instance, override_template,
-                default=template)
-                
+            template = utils.get_templates(instance, key, template)
+
             # output
             return render_to_response(template, context, 
                 context_instance=RequestContext(request))

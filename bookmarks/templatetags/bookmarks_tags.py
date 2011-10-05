@@ -135,8 +135,11 @@ def bookmark_form(parser, token):
     Otherwise the form is rendered using the first template found in the order
     that follows:
 
-        [app_name]/[model_name]/bookmark_form.html
-        [app_name]/bookmark_form.html
+        bookmarks/[app_name]/[model_name]/[key]/form.html
+        bookmarks/[app_name]/[model_name]/form.html
+        bookmarks/[app_name]/[key]/form.html
+        bookmarks/[app_name]/form.html
+        bookmarks/[key]/form.html
         bookmarks/form.html
     
     The *app_name* and *model_name* refer to the instance given as
@@ -147,17 +150,24 @@ def bookmark_form(parser, token):
     .. code-block:: html+django
 
         {% bookmark_form for myinstance using 'mykey' as form %}
+
         {% if form %}
-            <form action="{% url bookmarks_bookmark %}" method="post" accept-charset="UTF-8">
-                {% csrf_token %}
-                {{ form }}
-                {% if user.is_authenticated %}
-                    <input type="submit" value="{% if form.bookmark_exist %}remove{% else %}add{% endif %}" />
-                {% else %}
-                    Let the user log in.
-                {% endif %}
-            </form>
+            {% if user.is_authenticated %}
+                <form action="{% url bookmarks_bookmark %}" method="post" class="bookmarks_form">
+                    {% csrf_token %}
+                    {{ form }}
+                    {% with form.bookmark_exists as exists %}
+                        {# another hidden input is created to handle javascript submit event #}
+                        <input type="submit" value="add"{% if exists %} style="display: none;"{% endif %}/>
+                        <input type="submit" value="remove"{% if not exists %} style="display: none;"{% endif %}/>
+                    {% endwith %}                
+                    <span class="error" style="display: none;">Error during process</span>
+                </form>
+            {% else %}
+                Handle anonymous users.
+            {% endif %}
         {% endif %}
+
 
     The template variable (or the html) will be None if:
         - the user is not authenticated
@@ -169,8 +179,7 @@ def bookmark_form(parser, token):
 
 class BookmarkFormNode(BaseNode):
 
-    template_name = 'bookmarks/form.html'
-    override_template_name = 'bookmark_form.html'
+    template_name = 'form.html'
 
     @classmethod
     def get_template_context(cls, request, form, instance, key):
@@ -214,8 +223,7 @@ class BookmarkFormNode(BaseNode):
             # rendering the form
             ctx = template.RequestContext(request, 
                 self.get_template_context(context, form, instance, key))
-            templates = utils.get_templates(instance, 
-                self.override_template_name, default=self.template_name)
+            templates = utils.get_templates(instance, key, self.template_name)
             return template.loader.render_to_string(templates, ctx)
         else:
             # form as template variable
@@ -245,7 +253,7 @@ def ajax_bookmark_form(parser, token):
         AJAX_BOOKMARK_FORM_EXPRESSION))
 
 class AJAXBookmarkFormNode(BookmarkFormNode):
-    template_name = 'bookmarks/ajax_form.html'
+    template_name = 'ajax_form.html'
 
     @classmethod
     def get_template_context(cls, request, form, instance, key):
