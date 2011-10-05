@@ -137,4 +137,4 @@ Note that the form template variable will be *None* if:
 What is a key? It is a way to define different kind of bookmarks.
 For example, a user can add the article to his liked or to his disliked, and
 so we need a key to tell the system what he is doing.
-But this is an argoument for the next section: :doc:`handlers`.
+But this is an argument for the next section: :doc:`handlers`.

@@ -1,20 +1,24 @@
 Django Generic Bookmarks
 ========================
 
-This application provides bookmark functionality to a Django project.
+This application provides bookmarks management functionality to 
+a Django project.
 
-You can allow users to bookmark Django objects and then retreive them
-in order, for instance, to display user's favourited items, send
-notifications, customize the site behaviour.
+For instance, using bookmarks, users can store their favourited 
+contents, or items they follow, or topics they like or dislike.
 
-You can handle different types of bookmarks for each content type
-without adding additional fields to your models.
+A bookmark connects users to Django contents in a generic way, without
+modifying existing models tables, and *django-generic-bookmarks* exposes
+a simple API to handle them, yet allowing the management of bookmarks
+in complex scenarios too.
 
-This app provides *jQuery* based widgets, useful for increasing the user 
-experience (e.g.: ajax markers).
+The bookmarks can be stored using different backends. 
+The default one uses Django models to store user's preferences in the database,
+but it is possible to write customized backends, and the application, 
+out of the box, includes also a MongoDB backend.
 
 The source code for this app is hosted on 
-https://bitbucket.org/frankban/django-generic-bookmarks/src
+https://bitbucket.org/frankban/django-generic-bookmarks
 
 **Documentation** is avaliable 
 `online <http://django-generic-bookmarks.readthedocs.org/>`_ 
