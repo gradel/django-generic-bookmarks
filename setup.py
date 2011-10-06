@@ -1,5 +1,5 @@
-from distutils.core import setup
 import os
+from distutils.core import setup
 
 root_dir = os.path.dirname(__file__)
 if root_dir:
@@ -16,11 +16,14 @@ for dirpath, dirnames, filenames in os.walk('bookmarks'):
             data_files.append(os.path.join(dirpath[len("bookmarks")+1:], f))
             
 version = "%s.%s" % __import__('bookmarks').VERSION[:2]
-description = file('README.rst').read()
+
+def read(filename):
+    return file(os.path.join(os.path.dirname(__file__), filename)).read()
 
 setup(name='django-generic-bookmarks',
     version=version,
-    description=description,
+    description='Bookmarks, favourites, likes functionality for Django projects',
+    long_description=read("README.rst"),
     author='Francesco Banconi',
     author_email='francesco.banconi@gmail.com',
     url='https://bitbucket.org/frankban/django-generic-bookmarks/downloads',
