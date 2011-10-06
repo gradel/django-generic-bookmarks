@@ -49,6 +49,7 @@
                     form.find('.error').show();
                 }
             });
+            return false;
         });
     });
 })(jQuery);
