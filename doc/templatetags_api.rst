@@ -49,13 +49,13 @@ bookmark_form
 
         {% if form %}
             {% if user.is_authenticated %}
-                <form action="{% url bookmarks_bookmark %}" method="post" class="bookmarks_form">
+                <form action="{% url bookmarks_bookmark %}" method="post" accept-charset="UTF-8" class="bookmarks_form">
                     {% csrf_token %}
                     {{ form }}
                     {% with form.bookmark_exists as exists %}
                         {# another hidden input is created to handle javascript submit event #}
-                        <input type="submit" value="add"{% if exists %} style="display: none;"{% endif %}/>
-                        <input type="submit" value="remove"{% if not exists %} style="display: none;"{% endif %}/>
+                        <input class="bookmarks_toggle" type="submit" value="add"{% if exists %} style="display: none;"{% endif %}/>
+                        <input class="bookmarks_toggle" type="submit" value="remove"{% if not exists %} style="display: none;"{% endif %}/>
                     {% endwith %}                
                     <span class="error" style="display: none;">Error during process</span>
                 </form>

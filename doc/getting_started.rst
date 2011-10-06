@@ -12,6 +12,8 @@ Django  >= 1.3
 jQuery >= 1.4 is required if you want to take advantage of *AJAX* features 
 described above and in :doc:`templatetags_api`.
 
+``pip install mongoengine`` is needed if you want to use the MongoDB backend.
+
 Installation
 ~~~~~~~~~~~~
 
@@ -36,8 +38,15 @@ Add the request context processor in your *settings.py*, e.g.::
     
 Add ``'bookmarks'`` to the ``INSTALLED_APPS`` in your *settings.py*.
 
+The application, by default, uses Django models to save bookmarks in the
+database. If you want to use MongoDB instead, just add in your *settings.py*::
+
+    GENERIC_BOOKMARKS_BACKEND = 'bookmarks.backends.MongoBackend'
+    GENERIC_BOOKMARKS_MONGODB = {"NAME": "bookmarks"}
+
 See :doc:`customization` section in this documentation for other settings 
-options.
+options and :doc:`backends_api` for a detailed description of provided
+backends.
 
 Add the bookmarks urls to your *urls.py*, e.g.::
     
@@ -58,14 +67,12 @@ For example, if you have an *Article* model and you want users to add
 articles to their favourited, you must register the model as bookmarkable,
 e.g.::
 
-For instance, having a *Film* model::
-
     from bookmarks.handlers import library
     library.register(Article)
 
 You can register models anywhere you like. However, you'll need to make sure 
-that the module it's in gets imported early on so that the model gets registered 
-before any bookmark is saved by the user.
+that the module it's in gets imported early on so that the model gets 
+registered before any bookmark is saved by the user.
 This makes your app's *models.py* a good place to put the above code.
 
 Under the hood you have registered the *Article* model with a default 
@@ -110,13 +117,13 @@ presented, e.g.:
 
     {% if form %}
         {% if user.is_authenticated %}
-            <form action="{% url bookmarks_bookmark %}" method="post" class="bookmarks_form">
+            <form action="{% url bookmarks_bookmark %}" method="post" accept-charset="UTF-8" class="bookmarks_form">
                 {% csrf_token %}
                 {{ form }}
                 {% with form.bookmark_exists as exists %}
                     {# another hidden input is created to handle javascript submit event #}
-                    <input type="submit" value="add"{% if exists %} style="display: none;"{% endif %}/>
-                    <input type="submit" value="remove"{% if not exists %} style="display: none;"{% endif %}/>
+                    <input class="bookmarks_toggle" type="submit" value="add"{% if exists %} style="display: none;"{% endif %}/>
+                    <input class="bookmarks_toggle" type="submit" value="remove"{% if not exists %} style="display: none;"{% endif %}/>
                 {% endwith %}                
                 <span class="error" style="display: none;">Error during process</span>
             </form>
@@ -124,6 +131,7 @@ presented, e.g.:
             Handle anonymous users.
         {% endif %}
     {% endif %}
+
 
 This application provides other templatetags (e.g.: for bookmarks retreival) 
 and the ``bookmark_form`` has other useful options, explained in detail in: 

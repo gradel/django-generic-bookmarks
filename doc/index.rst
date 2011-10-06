@@ -39,6 +39,7 @@ Contents
    handlers_api
    forms_api
    backends_api
+   views_api
    models_api
 
 Indices and tables

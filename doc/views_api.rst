@@ -1,74 +1,16 @@
-"""
-Class based generic views.
-These views are only available if you are using Django >= 1.3.
-"""
-from django.contrib.auth.models import User
-from django.views.generic.detail import DetailView
+Class based views
+=================
 
-from bookmarks.handlers import library
+The application provides two generic class based views 
+(only available if you are using Django >= 1.3).
 
-class BookmarksMixin(object):
-    """
-    Mixin for bookmarks class based views.
-    Views subclassing this class must implement the *get_bookmarks* method.
+.. py:module:: bookmarks.views.generic
 
-    .. py:attribute:: context_bookmarks_name
+BookmarksForView
+~~~~~~~~~~~~~~~~
 
-        The name of context variable containing bookmarks.
-        Default is *'bookmarks'*.
+.. py:class:: BookmarksForView(BookmarksMixin, DetailView)
 
-    .. py:attribute:: key
-
-        The bookmarks key to use for retreiving bookmarks.
-        Default is *None*.
-
-    .. py:attribute:: reversed_order
-
-        If True, bookmarks are ordered by creation date descending.
-        Default is True.
-    """
-    context_bookmarks_name = 'bookmarks'
-    template_name_suffix = '_bookmarks'
-    key = None
-    reversed_order = True
-
-    def get_context_bookmarks_name(self, obj):
-        """
-        Get the variable name to use for the bookmarks.
-        """
-        return self.context_bookmarks_name
-
-    def get_key(self, obj):
-        """
-        Get the key to use to retreive bookmarks.
-        If the key is None, use all keys.
-        """
-        return self.key
-
-    def order_is_reversed(self, obj):
-        """
-        Return True to sort bookmarks by creation date descending.
-        """
-        return self.reversed_order
-
-    def get_context_data(self, **kwargs):
-        context = super(BookmarksMixin, self).get_context_data(**kwargs)
-        context_bookmarks_name = self.get_context_bookmarks_name(self.object)
-        key = self.get_key(self.object)
-        is_reversed = self.order_is_reversed(self.object)
-        bookmarks = self.get_bookmarks(self.object, key, is_reversed)
-        context[context_bookmarks_name] = bookmarks
-        return context
-
-    def get_bookmarks(self, obj, key, is_reversed):
-        """
-        Must return a bookmark queryset.
-        """
-        raise NotImplementedError
-
-
-class BookmarksForView(BookmarksMixin, DetailView):
-    """
     Can be used to retreive and display a list of bookmarks of a given object.
 
     This class based view accepts all the parameters that can be passed
@@ -103,20 +45,44 @@ class BookmarksForView(BookmarksMixin, DetailView):
     The default template suffix is ``'_bookmarks'``, and so the template
     used in our example is ``article_bookmarks.html``.
 
+    .. py:attribute:: context_bookmarks_name
 
-    """  
-    def get_bookmarks(self, obj, key, is_reversed):
-        """
+        The name of context variable containing bookmarks.
+        Default is *'bookmarks'*.
+
+    .. py:attribute:: key
+
+        The bookmarks key to use for retreiving bookmarks.
+        Default is *None*.
+
+    .. py:attribute:: reversed_order
+
+        If True, bookmarks are ordered by creation date descending.
+        Default is True.
+
+    .. py:method:: get_context_bookmarks_name(self, obj)
+
+        Get the variable name to use for the bookmarks.
+
+    .. py:method:: get_key(self, obj)
+
+        Get the key to use to retreive bookmarks.
+        If the key is None, use all keys.
+    
+    .. py:method:: order_is_reversed(self, obj)
+
+        Return True to sort bookmarks by creation date descending.
+    
+    .. py:method:: get_bookmarks(self, obj, key, is_reversed)
+
         Return a queryset of bookmarks of *obj*.
-        """
-        lookups = {'instance': obj, 'reversed': is_reversed}
-        if key is not None:
-            lookups['key'] = key
-        return library.backend.filter(**lookups)
 
 
-class BookmarksByView(BookmarksMixin, DetailView):
-    """
+BookmarksByView
+~~~~~~~~~~~~~~~
+        
+.. py:class:: BookmarksByView(BookmarksMixin, DetailView)
+
     Can be used to retreive and display a list of bookmarks saved by a  
     given user.
 
@@ -154,14 +120,35 @@ class BookmarksByView(BookmarksMixin, DetailView):
         
     The default template suffix is ``'_bookmarks'``, and so the template
     used in our example is ``user_bookmarks.html``.
-    """
-    model = User
 
-    def get_bookmarks(self, obj, key, is_reversed):
-        """
+    .. py:attribute:: context_bookmarks_name
+
+        The name of context variable containing bookmarks.
+        Default is *'bookmarks'*.
+
+    .. py:attribute:: key
+
+        The bookmarks key to use for retreiving bookmarks.
+        Default is *None*.
+
+    .. py:attribute:: reversed_order
+
+        If True, bookmarks are ordered by creation date descending.
+        Default is True.
+
+    .. py:method:: get_context_bookmarks_name(self, obj)
+
+        Get the variable name to use for the bookmarks.
+
+    .. py:method:: get_key(self, obj)
+
+        Get the key to use to retreive bookmarks.
+        If the key is None, use all keys.
+    
+    .. py:method:: order_is_reversed(self, obj)
+
+        Return True to sort bookmarks by creation date descending.
+    
+    .. py:method:: get_bookmarks(self, obj, key, is_reversed)
+
         Return a queryset of bookmarks saved by *obj* user.
-        """
-        lookups = {'user': obj, 'reversed': is_reversed}
-        if key is not None:
-            lookups['key'] = key
-        return library.backend.filter(**lookups)

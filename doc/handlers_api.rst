@@ -66,7 +66,7 @@ Default handler
         For example, if you want a different key to be used if the user is
         staff, you can override this method in this way::
         
-            def get_key(self, request, instance):
+            def get_key(self, request, instance, key=None):
                 return 'staff' if request.user.is_superuser else 'normal'
 
     .. py:method:: allow_key(self, request, instance, key)
@@ -148,7 +148,7 @@ Default handler
 
     .. py:method:: normal_response(self, request, bookmark, created)
 
-        Called by *success_response* when the request is not ajax.
+        Called by *self.response* when the request is not ajax.
         Return a redirect response.
 
     .. py:method:: response(self, request, bookmark, created)
