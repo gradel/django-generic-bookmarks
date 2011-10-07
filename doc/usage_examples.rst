@@ -238,6 +238,46 @@ Bookmarks and cache
 See **ajax_bookmark_form** in :doc:`templatetags_api`.
 
 
+Retreiving bookmarks
+~~~~~~~~~~~~~~~~~~~~
+
+The backend used to store and retreive bookmarks is always accessible
+from the *library* registry.
+
+While a complete description of backends can be found in :doc:`backends_api`,
+here is a brief summary of the API::
+
+    from bookmarks.handlers import library
+    
+    # get all bookmarks saved by a user
+    bookmarks = library.backend.filter(user=user)
+
+    # get all bookmarks of a specified instance and key
+    bookmarks = library.backend.filter(instance=article, key='likes')
+
+    # get all articles bookmarks
+    bookmarks = library.backend.filter(model=Article)
+
+    # add/remove bookmarks
+    bookmark = library.backend.add(user, article, 'likes')
+    bookmark = library.backend.remove(user, article, 'likes')
+
+    # get a bookmark
+    bookmark = library.backend.get(user, article, 'likes')
+
+    # check for bookamrk existance
+    exists = library.backend.exists(user, article, 'likes')
+
+Note that backend is also present as an attribute of handlers, e.g.::
+
+    from bookmarks.handlers import library
+    handler = library.get_handler(Article)
+    backend = handler.backend
+
+It is easy to retreive bookmarks in templates using the **bookmark**
+and **bookmarks** templatetags (see :doc:`templatetags_api`).
+
+
 Annotating user's bookmarks
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -248,4 +288,4 @@ Deleting model instances
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 To preserve database integrity, when you delete a model instance 
-all related bookamrks are contextually deleted too.
+all related bookmarks are contextually deleted too.

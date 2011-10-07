@@ -108,9 +108,10 @@ The handler is used to do the real work.
 Initially the handler is responsable of producing a valid bookmark *key*.
 
 The key is an arbitrary string representing the type of bookmark we are saving.
-For example, users can like an article or hate it, or maybe they want be
-notified on comments of that article. Theese are differend types of bookmarks
-and can be expressed using different keys (e.g.: 'likes', 'hates', 'comments').
+For example, users can like an article or hate it, or maybe they want to be
+notified on comments of that article. Theese are different types of bookmarks
+and can be expressed using different keys 
+(e.g.: ``likes``, ``hates``, ``comments``).
 
 The two methods called to handle keys are:
 
@@ -135,6 +136,9 @@ The two methods called to handle keys are:
         def get_key(self, request, instance, key=None):
             return 'staff' if request.user.is_superuser else 'normal'
 
+    If you do not customize things, this method returns the given *key* 
+    (if not *None*) or a default key ``main``.
+
 .. py:method:: allow_key(self, request, instance, key)
 
     This method is called when the user tries to bookmark an object 
@@ -158,7 +162,7 @@ See :doc:`usage_examples` for a deeper explanation of how to handle keys.
 2. Bookmark saving
 ------------------
 
-Four handlers methods are involved in bookmarks saving:
+Five handlers methods are involved in bookmarks saving:
 
 .. py:method:: get_form(self, request, **kwargs)
 
@@ -168,7 +172,7 @@ Four handlers methods are involved in bookmarks saving:
 .. py:method:: get_form_class(self, request)
     
     to get the form class used (usually is *Handler.form_class* 
-    that by default points to *bookmakrs.forms.BookmarkForm*).
+    that by default points to *bookmarks.forms.BookmarkForm*).
 
 .. py:method:: pre_save(self, request, form)
 
@@ -210,7 +214,7 @@ Four handlers methods are involved in bookmarks saving:
 3. HTTP Response
 ----------------
 
-The reponse to the client is managed by
+Finally, the reponse to the client is managed by
 
 .. py:method:: response(self, request, bookmark, created)
 

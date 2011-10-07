@@ -19,7 +19,7 @@ Installation
 
 The Mercurial repository of the application can be cloned with this command::
 
-    hg clone https://frankban@bitbucket.org/frankban/django-generic-bookmarks
+    hg clone https://bitbucket.org/frankban/django-generic-bookmarks
 
 The ``bookmarks`` package, included in the distribution, should be
 placed on the ``PYTHONPATH``.
@@ -64,7 +64,7 @@ registered as *bookmarkable*, i.e. the system must know that instances
 of that model can be bookmarked by users.
 
 For example, if you have an *Article* model and you want users to add
-articles to their favourited, you must register the model as bookmarkable,
+articles to their favourites, you must register the model as bookmarkable,
 e.g.::
 
     from bookmarks.handlers import library
@@ -134,7 +134,7 @@ presented, e.g.:
 
 
 This application provides other templatetags (e.g.: for bookmarks retreival) 
-and the ``bookmark_form`` has other useful options, explained in detail in: 
+and the ``bookmark_form`` has other useful options, explained in detail in
 :doc:`templatetags_api`.
 
 Note that the form template variable will be *None* if:

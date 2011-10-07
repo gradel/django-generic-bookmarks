@@ -11,7 +11,7 @@ Writing your own backend
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 The application ships with a Django model backend and a MongoDB backend,
-but you can add your own defining a class with the interface above and 
+but you can add your own defining a class with the interface below and 
 pointing ``settings.GENERIC_BOOKMARKS_BACKEND`` to the new customized one.
 
 .. py:class:: BaseBackend

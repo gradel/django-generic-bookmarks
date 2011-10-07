@@ -91,7 +91,7 @@ ajax_bookmark_form
     (so you can't use the *as varname* part), and the form template
     is rendered using an AJAX request.
 
-    This is usiful for example when you want to show add/remove
+    This is useful for example when you want to show add/remove
     bookamrk interaction for authenticated users even in a cached template.
 
     You need to load jQuery before using this templatetag.
