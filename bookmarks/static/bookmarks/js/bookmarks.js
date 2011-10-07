@@ -47,6 +47,9 @@
                 data: values,  
                 error: function() {
                     form.find('.error').show();
+                },
+                success: function(data) {
+                    form.trigger('bookmarked', data);    
                 }
             });
             return false;
