@@ -2,7 +2,7 @@
 <script type="text/javascript">
     (function($) {
         $(document).ready(function() {
-            $('#{{ form_id }}').load('{{ url }}')
+            $('#' + '{{ form_id }}'.replace(/(:|\.)/g,'\\$1')).load('{{ url }}')
         }); 
     })(jQuery);
 </script>
