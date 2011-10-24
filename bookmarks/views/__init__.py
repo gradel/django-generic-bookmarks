@@ -10,7 +10,7 @@ ERRORS = {
     'model': u'Invalid model.',
     'handler': u'Unregistered model.',
     'key': u'Invalid key.',
-    'form': u'Invalid form data.',
+    'instance': u'Invalid instance.',
 }
 
 def bookmark(request):
@@ -95,29 +95,33 @@ def ajax_form(request, extra_context=None,
             # bad or unregistered model -> bad request
             return http.HttpResponseBadRequest(ERRORS['handler'])
 
+        # getting instance
+        object_id = request.GET.get('object_id')
+        try:
+            instance = model.objects.get(pk=object_id)
+        except (TypeError, ValueError, model.DoesNotExists):
+            # invalid instance -> bad request
+            return http.HttpResponseBadRequest(ERRORS['instance'])
+
         # getting form
         form = handler.get_form(request, data=request.GET)
-        if form.is_valid():
-            instance = form.instance()
 
-            # validating the bookmark key
-            key = handler.get_key(request, instance, form.cleaned_data['key'])
-            if not handler.allow_key(request, instance, key):
-                return http.HttpResponseBadRequest(ERRORS['key'])
+        # validating the bookmark key
+        key = handler.get_key(request, instance, request.GET.get('key'))
+        if not handler.allow_key(request, instance, key):
+            return http.HttpResponseBadRequest(ERRORS['key'])
 
-            # context and template
-            context = bookmarks_tags.BookmarkFormNode.get_template_context(
-                request, form, instance, key)
-            if extra_context is not None:
-                context.update(extra_context)
-            template = utils.get_templates(instance, key, template)
+        # context and template
+        context = bookmarks_tags.BookmarkFormNode.get_template_context(
+            request, form, instance, key)
+        if extra_context is not None:
+            context.update(extra_context)
+        template = utils.get_templates(instance, key, template)
 
-            # output
-            return render_to_response(template, context, 
-                context_instance=RequestContext(request))
+        # output
+        return render_to_response(template, context, 
+            context_instance=RequestContext(request))
 
-        # form is not valid -> bad request
-        return http.HttpResponseBadRequest(ERRORS['form'])
         
     # only answer AJAX requests
     return http.HttpResponseForbidden('Forbidden.')
