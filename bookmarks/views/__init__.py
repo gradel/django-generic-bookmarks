@@ -114,6 +114,7 @@ def ajax_form(request, extra_context=None,
         # context and template
         context = bookmarks_tags.BookmarkFormNode.get_template_context(
             request, form, instance, key)
+        context['next_url'] = request.META.get('HTTP_REFERER') or '/'
         if extra_context is not None:
             context.update(extra_context)
         template = utils.get_templates(instance, key, template)

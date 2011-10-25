@@ -11,6 +11,6 @@
             <span class="error" style="display: none;">Error during process</span>
         </form>
     {% else %}
-        <a href="{{ login_url }}?{{ next }}={{ request.get_full_path }}">add</a>
+        <a href="{{ login_url }}?{{ next }}={{ next_url|default:request.get_full_path }}">add</a>
     {% endif %}
 {% endif %}
