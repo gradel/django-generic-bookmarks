@@ -4,7 +4,7 @@ Django Generic Bookmarks
 This application provides bookmarks management functionality to 
 a Django project.
 
-For instance, using bookmarks, users can store their favourited 
+For instance, using bookmarks, users can store their favourites 
 contents, or items they follow, or topics they like or dislike.
 
 A bookmark connects users to Django contents in a generic way, without

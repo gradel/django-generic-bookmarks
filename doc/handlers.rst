@@ -128,7 +128,7 @@ The two methods called to handle keys are:
     .. code-block:: html+django
 
         {% load bookmarks_tags %}
-        {% bookmark_form for article using 'favourited' %}
+        {% bookmark_form for article using 'favourite' %}
     
     For example, if you want a different key to be used if the user is
     staff, you can override this method in this way::

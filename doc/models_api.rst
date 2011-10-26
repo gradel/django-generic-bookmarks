@@ -64,10 +64,10 @@ In bulk selections
     
     Usage example::
     
-        for article in annotate_bookmarks(Article.objects.all(), 'favourited', 
+        for article in annotate_bookmarks(Article.objects.all(), 'favourite', 
             myuser, attr='has_a_bookmark'):
             if article.has_a_bookmark:
-                print u"Article %s is favourited by user %s" (article, myuser)
+                print u"User %s likes article %s" (myuser, article)
 
 
 Abstract models

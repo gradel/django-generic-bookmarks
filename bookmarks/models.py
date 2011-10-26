@@ -77,10 +77,10 @@ def annotate_bookmarks(queryset_or_model, key, user, attr='is_bookmarked'):
     
     Usage example::
     
-        for article in annotate_bookmarks(Article.objects.all(), 'favourited', 
+        for article in annotate_bookmarks(Article.objects.all(), 'favourite', 
             myuser, attr='has_a_bookmark'):
             if article.has_a_bookmark:
-                print u"Article %s is favourited by user %s" (article, myuser)
+                print u"User %s likes article %s" (myuser, article)
     """
     from bookmarks import utils
     # getting the queryset
