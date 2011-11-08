@@ -57,7 +57,7 @@ def bookmark(request):
             
             # adding or removing the bookmark
             bookmark = handler.save(request, form)
-            created = bool(bookmark)
+            created = bool(bookmark.pk)
         
             # post-save signal
             # note: one receiver is always called: *handler.post_save*
