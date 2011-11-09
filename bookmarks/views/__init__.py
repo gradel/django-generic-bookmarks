@@ -99,7 +99,7 @@ def ajax_form(request, extra_context=None,
         object_id = request.GET.get('object_id')
         try:
             instance = model.objects.get(pk=object_id)
-        except (TypeError, ValueError, model.DoesNotExists):
+        except (TypeError, ValueError, model.DoesNotExist):
             # invalid instance -> bad request
             return http.HttpResponseBadRequest(ERRORS['instance'])
 
