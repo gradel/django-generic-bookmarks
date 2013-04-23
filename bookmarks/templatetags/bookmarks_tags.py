@@ -200,6 +200,8 @@ class BookmarkFormNode(BaseNode):
         """
         return {
             'form': form,
+            'instance': instance,
+            'key': key,
             'login_url': settings.LOGIN_URL,
             'next': REDIRECT_FIELD_NAME,
         }
