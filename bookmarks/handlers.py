@@ -1,6 +1,5 @@
 from django.db.models.base import ModelBase
 from django.db.models.signals import pre_delete
-from django.contrib.contenttypes.models import ContentType
 
 from bookmarks import settings, backends, forms, exceptions, signals
 
@@ -191,7 +190,7 @@ class Handler(object):
             }
         """
         from django.http import HttpResponse
-        from django.utils import simplejson as json
+        import json
         data = {
             'key': bookmark.key,
             'bookmark_id': bookmark.id,
