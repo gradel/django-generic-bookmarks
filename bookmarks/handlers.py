@@ -1,3 +1,7 @@
+try:
+    import json
+except ImportError:
+    from django.utils import simplejson as json
 from django.db.models.base import ModelBase
 from django.db.models.signals import pre_delete
 
@@ -190,7 +194,7 @@ class Handler(object):
             }
         """
         from django.http import HttpResponse
-        import json
+        
         data = {
             'key': bookmark.key,
             'bookmark_id': bookmark.id,
