@@ -9,3 +9,4 @@ INSTALLED_APPS = (
 )
 GENERIC_BOOKMARKS_MONGODB = {"NAME": "test_generic_bookmarks"}
 ROOT_URLCONF = 'urls'
+SECRET_KEY = 'this_is_not_a_secret_key'
