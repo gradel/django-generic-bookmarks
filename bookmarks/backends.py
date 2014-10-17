@@ -1,3 +1,4 @@
+from django import VERSION
 try:
     from importlib import import_module
 except ImportError:
@@ -8,6 +9,9 @@ from django.contrib.auth.models import User
 from django.contrib.contenttypes.models import ContentType
 
 from bookmarks import settings, models, utils, exceptions
+
+if VERSION < (1, 6):
+    transaction.atomic = transaction.commit_on_success
 
 
 class BaseBackend(object):
@@ -97,15 +101,15 @@ class ModelBackend(BaseBackend):
     def get_model(self):
         return models.Bookmark
 
-    @transaction.commit_on_success
+    @transaction.atomic
     def add(self, user, instance, key):
         return self.get_model().objects.add(user, instance, key)
 
-    @transaction.commit_on_success
+    @transaction.atomic
     def remove(self, user, instance, key):
         return self.get_model().objects.remove(user, instance, key)
 
-    @transaction.commit_on_success
+    @transaction.atomic
     def remove_all_for(self, instance):
         self.get_model().objects.remove_all_for(instance)
 
