@@ -352,6 +352,14 @@ class Registry(object):
         Return the handler for given model or model instance.
         Return None if model is not registered.
         """
+        try:
+            if model_or_instance.is_authenticated():
+                # could not find a way to reliable convert
+                # user lazy object to user object
+                import django
+                return self._registry.get(django.contrib.auth.models.User)
+        except:
+            pass
         if isinstance(model_or_instance, ModelBase):
             model = model_or_instance
         else:
