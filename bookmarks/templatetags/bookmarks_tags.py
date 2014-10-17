@@ -11,6 +11,7 @@ from bookmarks import handlers, utils, exceptions
 
 register = template.Library()
 
+
 def _parse_args(parser, token, expression):
     try:
         tag_name, arg = token.contents.split(None, 1)
@@ -23,7 +24,7 @@ def _parse_args(parser, token, expression):
         error = u"%r tag has invalid arguments" % tag_name
         raise template.TemplateSyntaxError, error
     return match.groupdict()
- 
+
 
 class BaseNode(template.Node):
     def __init__(self, instance, key, varname):
@@ -54,6 +55,7 @@ BOOKMARK_EXPRESSION = re.compile(r"""
     $ # end of line
 """, re.VERBOSE)
 
+
 @register.tag
 def bookmark(parser, token):
     """
@@ -61,16 +63,16 @@ def bookmark(parser, token):
     and key, and for current user.
 
     Usage:
-    
+
     .. code-block:: html+django
 
         {% bookmark for *instance* [using *key*] as *varname* %}
-    
-    The key can be given hardcoded (surrounded by quotes) 
+
+    The key can be given hardcoded (surrounded by quotes)
     or as a template variable.
-    Note that if the key is not given, it will be generated using 
+    Note that if the key is not given, it will be generated using
     the handler's *get_key* method, that, if not overridden, returns
-    the default key. 
+    the default key.
 
     The template variable will be None if:
         - the user is not authenticated
@@ -79,7 +81,8 @@ def bookmark(parser, token):
     """
     return BookmarkNode(**_parse_args(parser, token, BOOKMARK_EXPRESSION))
 
-class BookmarkNode(BaseNode):   
+
+class BookmarkNode(BaseNode):
     def render(self, context):
         # user validation
         request = context['request']
@@ -92,7 +95,7 @@ class BookmarkNode(BaseNode):
         # handler validation
         if handler is None:
             return u''
-        
+
         # key
         key = handler.get_key(request, instance, self._get_key(context))
 
@@ -112,25 +115,26 @@ BOOKMARK_FORM_EXPRESSION = re.compile(r"""
     $ # end of line
 """, re.VERBOSE)
 
+
 @register.tag
 def bookmark_form(parser, token):
     """
-    Return, as html or as a template variable, a Django form to add or remove 
+    Return, as html or as a template variable, a Django form to add or remove
     a bookmark for the given instance and key, and for current user.
 
     Usage:
-    
+
     .. code-block:: html+django
 
         {% bookmark_form for *instance* [using *key*] [as *varname*] %}
-    
-    The key can be given hardcoded (surrounded by quotes) 
-    or as a template variable.
-    Note that if the key is not given, it will be generated using 
-    the handler's *get_key* method, that, if not overridden, returns
-    the default key. 
 
-    If the *varname* is used then it will be a context variable 
+    The key can be given hardcoded (surrounded by quotes)
+    or as a template variable.
+    Note that if the key is not given, it will be generated using
+    the handler's *get_key* method, that, if not overridden, returns
+    the default key.
+
+    If the *varname* is used then it will be a context variable
     containing the form.
     Otherwise the form is rendered using the first template found in the order
     that follows::
@@ -141,7 +145,7 @@ def bookmark_form(parser, token):
         bookmarks/[app_name]/form.html
         bookmarks/[key]/form.html
         bookmarks/form.html
-    
+
     The *app_name* and *model_name* refer to the instance given as
     argument to this templatetag.
 
@@ -160,7 +164,7 @@ def bookmark_form(parser, token):
                         {# another hidden input is created to handle javascript submit event #}
                         <input class="bookmarks_toggle" type="submit" value="add"{% if exists %} style="display: none;"{% endif %}/>
                         <input class="bookmarks_toggle" type="submit" value="remove"{% if not exists %} style="display: none;"{% endif %}/>
-                    {% endwith %}                
+                    {% endwith %}
                     <span class="error" style="display: none;">Error during process</span>
                 </form>
             {% else %}
@@ -185,8 +189,9 @@ def bookmark_form(parser, token):
 
         {% bookmark_form for article %}
     """
-    return BookmarkFormNode(**_parse_args(parser, token, 
+    return BookmarkFormNode(**_parse_args(parser, token,
         BOOKMARK_FORM_EXPRESSION))
+
 
 class BookmarkFormNode(BaseNode):
 
@@ -195,7 +200,7 @@ class BookmarkFormNode(BaseNode):
     @classmethod
     def get_template_context(cls, request, form, instance, key):
         """
-        Return the template context: used only when the *as variable* 
+        Return the template context: used only when the *as variable*
         argument is not used in templatetag invocation.
         """
         return {
@@ -218,7 +223,7 @@ class BookmarkFormNode(BaseNode):
         # handler validation
         if handler is None:
             return u''
-        
+
         # key validation
         key = handler.get_key(request, instance, self._get_key(context))
         if not handler.allow_key(request, instance, key):
@@ -234,7 +239,7 @@ class BookmarkFormNode(BaseNode):
 
         if self.varname is None:
             # rendering the form
-            ctx = template.RequestContext(request, 
+            ctx = template.RequestContext(request,
                 self.get_template_context(context, form, instance, key))
             templates = utils.get_templates(instance, key, self.template_name)
             return template.loader.render_to_string(templates, ctx)
@@ -251,6 +256,7 @@ AJAX_BOOKMARK_FORM_EXPRESSION = re.compile(r"""
     $ # end of line
 """, re.VERBOSE)
 
+
 @register.tag
 def ajax_bookmark_form(parser, token):
     """
@@ -264,8 +270,9 @@ def ajax_bookmark_form(parser, token):
 
     You need to load jQuery before using this templatetag.
     """
-    return AJAXBookmarkFormNode(varname=None, **_parse_args(parser, token, 
+    return AJAXBookmarkFormNode(varname=None, **_parse_args(parser, token,
         AJAX_BOOKMARK_FORM_EXPRESSION))
+
 
 class AJAXBookmarkFormNode(BookmarkFormNode):
     template_name = 'ajax_form.html'
@@ -295,16 +302,17 @@ BOOKMARKS_EXPRESSION = re.compile(r"""
     $ # end of line
 """, re.VERBOSE)
 
+
 @register.tag
 def bookmarks(parser, token):
     """
-    Return as a template variable all bookmarks, with possibility to filter 
+    Return as a template variable all bookmarks, with possibility to filter
     them by user, or to take only bookmarks of a particular model and
-    using a specified key. It is also possible to reverse the order 
+    using a specified key. It is also possible to reverse the order
     of bookmarks (by default they are ordered by date).
 
     Usage:
-    
+
     .. code-block:: html+django
 
         {% bookmarks [of *model*] [by *user*] [using *key*] [reversed] as *varname* %}
@@ -327,10 +335,11 @@ def bookmarks(parser, token):
         - a model name as string (e.g.: 'myapp.mymodel')
         - a model instance
 
-    The key can be given hardcoded (surrounded by quotes) 
+    The key can be given hardcoded (surrounded by quotes)
     or as a template variable.
     """
     return BookmarksNode(**_parse_args(parser, token, BOOKMARKS_EXPRESSION))
+
 
 class BookmarksNode(template.Node):
     def __init__(self, model, user, key, order, varname):

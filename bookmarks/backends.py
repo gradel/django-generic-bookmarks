@@ -6,13 +6,14 @@ from django.db import transaction
 from django.core.exceptions import ImproperlyConfigured
 from django.contrib.auth.models import User
 from django.contrib.contenttypes.models import ContentType
-    
+
 from bookmarks import settings, models, utils, exceptions
+
 
 class BaseBackend(object):
     """
     Base bookmarks backend.
-    
+
     Users may want to change *settings.GENERIC_BOOKMARKS_BACKEND*
     and customize the backend implementing all the methods defined here.
     """
@@ -20,7 +21,7 @@ class BaseBackend(object):
         """
         Must return the bookmark model (a Django model or anything you like).
         Instances of this model must have the following attributes:
-        
+
             - user (who made the bookmark, a Django user instance)
             - key (the bookmark key, as string)
             - content_type (a Django content_type instance)
@@ -29,7 +30,7 @@ class BaseBackend(object):
             - created_at (the date when the bookmark is created)
         """
         raise NotImplementedError
-        
+
     def add(self, user, instance, key):
         """
         Must create a bookmark for *instance* by *user* using *key*.
@@ -37,7 +38,7 @@ class BaseBackend(object):
         Must raise *exceptions.AlreadyExists* if the bookmark already exists.
         """
         raise NotImplementedError
-        
+
     def remove(self, user, instance, key):
         """
         Must remove the bookmark identified by *user*, *instance* and *key*.
@@ -45,13 +46,13 @@ class BaseBackend(object):
         Must raise *exceptions.DoesNotExist* if the bookmark does not exist.
         """
         raise NotImplementedError
-        
+
     def remove_all_for(self, instance):
         """
         Must delete all the bookmarks related to given *instance*.
         """
         raise NotImplementedError
-                
+
     def filter(self, **kwargs):
         """
         Must return all bookmarks corresponding to given *kwargs*.
@@ -78,14 +79,14 @@ class BaseBackend(object):
         Must raise *exceptions.DoesNotExist* if the bookmark does not exist.
         """
         raise NotImplementedError
-        
+
     def exists(self, user, instance, key):
         """
         Must return True if a bookmark given by *user* for *instance*
         using *key* exists, False otherwise.
         """
         raise NotImplementedError
-        
+
 
 class ModelBackend(BaseBackend):
     """
@@ -95,19 +96,19 @@ class ModelBackend(BaseBackend):
     """
     def get_model(self):
         return models.Bookmark
-    
-    @transaction.commit_on_success  
+
+    @transaction.commit_on_success
     def add(self, user, instance, key):
         return self.get_model().objects.add(user, instance, key)
-    
+
     @transaction.commit_on_success
     def remove(self, user, instance, key):
         return self.get_model().objects.remove(user, instance, key)
-    
+
     @transaction.commit_on_success
     def remove_all_for(self, instance):
         self.get_model().objects.remove_all_for(instance)
-    
+
     def filter(self, **kwargs):
         """
         The *kwargs* can be:
@@ -133,13 +134,13 @@ class ModelBackend(BaseBackend):
         else:
             queryset = self.get_model().objects.filter(**kwargs)
         return queryset.order_by(order)
-                
+
     def get(self, user, instance, key):
         bookmark = self.get_model().objects.get_for(instance, key, user=user)
         if bookmark is None:
             raise exceptions.DoesNotExist
         return bookmark
-        
+
     def exists(self, user, instance, key):
         return self.filter(instance=instance, user=user, key=key).exists()
 
@@ -165,27 +166,27 @@ class MongoBackend(BaseBackend):
 
     def _get_content_type_id(self, instance):
         return utils.get_content_type_for_model(instance).id
-    
+
     def _create_model(self):
         import datetime
         from mongoengine import Document, IntField, StringField, DateTimeField
-        
+
         class Bookmark(Document):
             content_type_id = IntField(required=True, min_value=1)
             object_id = IntField(required=True, min_value=1)
-            
+
             key = StringField(required=True, max_length=16)
-            
-            user_id = IntField(required=True, min_value=1, 
+
+            user_id = IntField(required=True, min_value=1,
                 unique_with=['content_type_id', 'object_id', 'key'])
-            
-            created_at = DateTimeField(required=True, 
+
+            created_at = DateTimeField(required=True,
                 default=datetime.datetime.now)
 
             meta = {'indexes': ['user_id', ('content_type_id', 'object_id')]}
 
             def __unicode__(self):
-                return u'Bookmark for %s by %s' % (self.content_object, 
+                return u'Bookmark for %s by %s' % (self.content_object,
                     self.user)
 
             def __eq__(self, other):
@@ -194,14 +195,14 @@ class MongoBackend(BaseBackend):
             @property
             def user(self):
                 return User.objects.get(pk=self.user_id)
-            
+
             @property
             def content_object(self):
                 ct = ContentType.objects.get_for_id(self.content_type_id)
                 return ct.get_object_for_this_type(pk=self.object_id)
-        
+
         return Bookmark
-    
+
     def get_model(self):
         if self._model is None:
             self._model = self._create_model()
@@ -221,19 +222,19 @@ class MongoBackend(BaseBackend):
         except mongoengine.OperationError:
             raise exceptions.AlreadyExists
         return bookmark
-        
+
     def remove(self, user, instance, key):
         bookmark = self.get(user, instance, key)
         bookmark.delete()
         return bookmark
-        
+
     def remove_all_for(self, instance):
         model = self.get_model()
         model.objects.filter(
             content_type_id=self._get_content_type_id(instance),
             object_id=instance.pk,
         ).delete()
-                
+
     def filter(self, **kwargs):
         """
         The *kwargs* can be:
@@ -255,7 +256,7 @@ class MongoBackend(BaseBackend):
             model = kwargs.pop('model')
             kwargs['content_type'] = self._get_content_type_id(model)
         return self.get_model().objects.filter(**kwargs).order_by(order)
-    
+
     def get(self, user, instance, key):
         model = self.get_model()
         try:
@@ -267,20 +268,20 @@ class MongoBackend(BaseBackend):
             )
         except model.DoesNotExist:
             raise exceptions.DoesNotExist
-        
+
     def exists(self, user, instance, key):
         try:
             self.get(user, instance, key)
         except exceptions.DoesNotExist:
             return False
         return True
-        
-        
+
+
 def get_backend():
     if settings.BACKEND is None:
         return ModelBackend()
     i = settings.BACKEND.rfind('.')
-    module, attr = settings.BACKEND[:i], settings.BACKEND[i+1:]
+    module, attr = settings.BACKEND[:i], settings.BACKEND[i + 1:]
     try:
         mod = import_module(module)
     except ImportError, err:

@@ -4,7 +4,7 @@ class BookmarksError(Exception):
     """
     pass
 
-        
+
 class AlreadyHandled(BookmarksError):
     """
     Raised when a model which is already registered for bookmarks is
@@ -19,13 +19,13 @@ class NotHandled(BookmarksError):
     attempting to be unregistered.
     """
     pass
-    
+
 
 class AlreadyExists(BookmarksError):
     """
     The bookmark you are trying to create already exists.
     """
-    
+
 
 class DoesNotExist(BookmarksError):
     """

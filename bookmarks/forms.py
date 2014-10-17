@@ -1,16 +1,17 @@
 from django import forms
 from django.db.models import get_model
 
+
 class BookmarkForm(forms.Form):
     """
     Form class to handle bookmarks.
-    
+
     The bookmark is identified by *model*, *object_id* and *key*.
     The bookmark is added or removed based on the his existance.
-    
+
     You can customize the app giving a custom form class, following
     some rules:
-        
+
         - the form must provide the following fields:
 
             - model -> a string representation of app label and model name
@@ -25,7 +26,7 @@ class BookmarkForm(forms.Form):
               the *args and **kwargs are normal form *args and **kwargs
 
             - bookmark_exists(self):
-              return True if the current user has that instance with that key 
+              return True if the current user has that instance with that key
               in his bookmarks
 
             - instance(self):
@@ -41,7 +42,7 @@ class BookmarkForm(forms.Form):
 
     def __init__(self, request, backend, *args, **kwargs):
         """
-        Takes the current *request*, the bookmark's *backend* and all 
+        Takes the current *request*, the bookmark's *backend* and all
         the normal Django form arguments.
         """
         super(BookmarkForm, self).__init__(*args, **kwargs)
@@ -51,7 +52,7 @@ class BookmarkForm(forms.Form):
 
     def clean(self):
         """
-        Check if an instance with current *model* and *object_id* actually 
+        Check if an instance with current *model* and *object_id* actually
         exists in the database, and validate only if the user is authenticated.
         """
         if self.request.user.is_anonymous():
@@ -84,7 +85,7 @@ class BookmarkForm(forms.Form):
     def _exists(self):
         key = self.cleaned_data['key']
         return self.backend.exists(self.request.user, self._instance, key)
-        
+
     def bookmark_exists(self):
         """
         Return True if *self.instance* is bookmarked by the current user

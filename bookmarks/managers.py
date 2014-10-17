@@ -3,16 +3,17 @@ from django.contrib.contenttypes.models import ContentType
 
 from bookmarks import exceptions, utils
 
+
 class QuerysetWithContents(object):
     """
     Queryset wrapper.
     """
     def __init__(self, queryset):
         self.queryset = queryset
-        
+
     def __getattr__(self, name):
         if name in ('get', 'create', 'get_or_create', 'count', 'in_bulk',
-            'iterator', 'latest', 'aggregate', 'exists', 'update', 'delete'):
+                'iterator', 'latest', 'aggregate', 'exists', 'update', 'delete'):
             return getattr(self.queryset, name)
         if hasattr(self.queryset, name):
             attr = getattr(self.queryset, name)
@@ -22,10 +23,10 @@ class QuerysetWithContents(object):
                 return _wrap
             return attr
         raise AttributeError(name)
-            
+
     def __getitem__(self, key):
         return self.__class__(self.queryset[key])
-        
+
     def __iter__(self):
         objects = list(self.queryset)
         generics = {}
@@ -37,13 +38,13 @@ class QuerysetWithContents(object):
             model = content_types[content_type_id].model_class()
             relations[content_type_id] = model.objects.in_bulk(pk_list)
         for i in objects:
-            setattr(i, '_content_object_cache', 
+            setattr(i, '_content_object_cache',
                 relations[i.content_type_id][i.object_id])
         return iter(objects)
-        
+
     def __len__(self):
         return len(self.queryset)
-                
+
 
 class BookmarksManager(models.Manager):
     """
@@ -51,19 +52,19 @@ class BookmarksManager(models.Manager):
     """
     def get_for(self, content_object, key, **kwargs):
         """
-        Return the instance related to *content_object* and matching *kwargs*. 
+        Return the instance related to *content_object* and matching *kwargs*.
         Return None if a bookmark is not found.
         """
         content_type = utils.get_content_type_for_model(type(content_object))
         try:
-            return self.get(key=key, content_type=content_type, 
+            return self.get(key=key, content_type=content_type,
                 object_id=content_object.pk, **kwargs)
         except self.model.DoesNotExist:
             return None
-            
+
     def filter_for(self, content_object_or_model, **kwargs):
         """
-        Return all the instances related to *content_object_or_model* and 
+        Return all the instances related to *content_object_or_model* and
         matching *kwargs*. The argument *content_object_or_model* can be
         both a model instance or a model class.
         """
@@ -78,12 +79,12 @@ class BookmarksManager(models.Manager):
             }
         lookups.update(kwargs)
         return self.filter(**lookups)
-            
+
     def filter_with_contents(self, **kwargs):
         """
         Return all instances retreiving content objects in bulk in order
         to minimize db queries, e.g. to get all objects bookmarked by a user::
-        
+
             for bookmark in Bookmark.objects.filter_with_contents(user=myuser):
                 bookmark.content_object # this does not hit the db
         """
@@ -93,26 +94,26 @@ class BookmarksManager(models.Manager):
         else:
             queryset = self.filter(**kwargs)
         return QuerysetWithContents(queryset)
-        
+
     def add(self, user, content_object, key):
         """
         Add a bookmark, given the user, the model instance and the key.
-        
-        Raise a *Bookmark.AlreadyExists* exception if that kind of 
+
+        Raise a *Bookmark.AlreadyExists* exception if that kind of
         bookmark is present in the db.
         """
         content_type = utils.get_content_type_for_model(type(content_object))
         try:
             return self.create(user=user, content_type=content_type,
                 object_id=content_object.pk, key=key)
-        except Exception: # TODO: IntegrityError?
+        except Exception:  # TODO: IntegrityError?
             raise exceptions.AlreadyExists
-    
+
     def remove(self, user, content_object, key):
         """
         Remove a bookmark, given the user, the model instance and the key.
-        
-        Raise a *Bookmark.DoesNotExist* exception if that kind of 
+
+        Raise a *Bookmark.DoesNotExist* exception if that kind of
         bookmark is not present in the db.
         """
         content_type = utils.get_content_type_for_model(type(content_object))
@@ -123,14 +124,14 @@ class BookmarksManager(models.Manager):
             raise exceptions.DoesNotExist
         bookmark.delete()
         return bookmark
-        
+
     def remove_all_for(self, content_object):
         """
         Remove all bookmarks for the given model instance.
-        
+
         The application uses this whenever a bookmarkable model instance
         is deleted, in order to mantain the integrity of the bookmarks table.
         """
         content_type = utils.get_content_type_for_model(type(content_object))
-        self.filter(content_type=content_type, 
+        self.filter(content_type=content_type,
             object_id=content_object.id).delete()

@@ -2,6 +2,7 @@ from django.contrib import admin
 
 from bookmarks import models
 
+
 class BookmarkAdmin(admin.ModelAdmin):
     list_display = ('content_object', 'key', 'user', 'created_at')
     list_filter = ('created_at',)

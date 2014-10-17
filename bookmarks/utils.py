@@ -3,11 +3,13 @@ from django.contrib.contenttypes.models import ContentType
 
 _get_content_type_for_model_cache = {}
 
+
 def get_content_type_for_model(model):
     return ContentType.objects.get_for_model(model)
 
-get_content_type_for_model = memoize(get_content_type_for_model, 
+get_content_type_for_model = memoize(get_content_type_for_model,
     _get_content_type_for_model_cache, 1)
+
 
 def get_templates(instance, key, name, base='bookmarks'):
     """
