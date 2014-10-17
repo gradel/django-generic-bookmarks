@@ -32,7 +32,7 @@
         }
     });
     $(document).ready(function() {
-        $('.bookmarks_form').live('submit', function() {
+        $('.bookmarks_form').on('submit', function() {
             var form = $(this);
             // toggle labels
             form.find('.bookmarks_toggle').toggle();
