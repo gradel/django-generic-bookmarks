@@ -2,7 +2,7 @@
     $(document).ajaxSend(function(event, xhr, settings) {
         function getCookie(name) {
             var cookieValue = null;
-            if (document.cookie && document.cookie != '') {
+            if (document.cookie && document.cookie !== '') {
                 var cookies = document.cookie.split(';');
                 for (var i = 0; i < cookies.length; i++) {
                     var cookie = jQuery.trim(cookies[i]);
@@ -41,15 +41,15 @@
                 values[this.name] = $(this).val();
             });
             // submitting form using ajax
-            $.ajax({  
-                type: 'POST',  
-                url: form.attr('action'),  
-                data: values,  
+            $.ajax({
+                type: 'POST',
+                url: form.attr('action'),
+                data: values,
                 error: function() {
                     form.find('.error').show();
                 },
                 success: function(data) {
-                    form.trigger('bookmarked', data);    
+                    form.trigger('bookmarked', data);
                 }
             });
             return false;
