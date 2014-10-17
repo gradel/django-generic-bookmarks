@@ -157,7 +157,8 @@ class MongoBackend(BaseBackend):
         password = settings.MONGODB.get("PASSWORD")
         parameters = settings.MONGODB.get("PARAMETERS", {})
         try:
-            self.db = mongoengine.connect(name, username, password, **parameters)
+            self.db = mongoengine.connect(name, username=username,
+                password=password, **parameters)
         except mongoengine.connection.ConnectionError:
             raise exceptions.MongodbConnectionError
         self._model = None
