@@ -2,7 +2,7 @@ import string
 
 from django.db import models
 from django.contrib.contenttypes.models import ContentType
-from django.contrib.contenttypes import generic
+from django.contrib.contenttypes import fields
 from django.contrib.auth.models import User
 
 from bookmarks import managers
@@ -42,7 +42,7 @@ class Bookmark(models.Model):
     """
     content_type = models.ForeignKey(ContentType)
     object_id = models.PositiveIntegerField()
-    content_object = generic.GenericForeignKey('content_type', 'object_id')
+    content_object = fields.GenericForeignKey('content_type', 'object_id')
 
     key = models.CharField(max_length=16)
 
@@ -120,7 +120,7 @@ class BookmarkedModel(models.Model):
     allowing accessto the reverse generic relation
     to the *bookmarks.models.Bookmark*.
     """
-    bookmarks = generic.GenericRelation(Bookmark)
+    bookmarks = fields.GenericRelation(Bookmark)
 
     class Meta:
         abstract = True
