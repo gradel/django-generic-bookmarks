@@ -288,7 +288,7 @@ def get_backend():
     module, attr = settings.BACKEND[:i], settings.BACKEND[i + 1:]
     try:
         mod = import_module(module)
-    except ImportError, err:
+    except ImportError as err:
         message = 'Error loading bookmarks backend %s: "%s"'
         raise ImproperlyConfigured(message % (module, err))
     try:

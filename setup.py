@@ -1,5 +1,9 @@
+try:
+    from setuptools import setup
+except ImportError:
+    from distutils.core import setup
+
 import os
-from distutils.core import setup
 
 root_dir = os.path.dirname(__file__)
 if root_dir:
@@ -13,12 +17,15 @@ for dirpath, dirnames, filenames in os.walk('bookmarks'):
         continue
     elif filenames:
         for f in filenames:
-            data_files.append(os.path.join(dirpath[len("bookmarks")+1:], f))
-            
+            data_files.append(os.path.join(dirpath[len("bookmarks") + 1:], f))
+
 version = "%s.%s" % __import__('bookmarks').VERSION[:2]
 
+
 def read(filename):
-    return file(os.path.join(os.path.dirname(__file__), filename)).read()
+    with open(os.path.join(os.path.dirname(__file__), filename)) as f:
+        content = f.read()
+    return content
 
 setup(name='django-generic-bookmarks',
     version=version,
@@ -26,10 +33,13 @@ setup(name='django-generic-bookmarks',
     long_description=read("README.rst"),
     author='Francesco Banconi',
     author_email='francesco.banconi@gmail.com',
-    url='https://bitbucket.org/frankban/django-generic-bookmarks/downloads',
+    url='https://github.com/gradel/django-generic-bookmarks/',
     zip_safe=False,
+    install_requires=[
+        'future'
+    ],
     packages=[
-        'bookmarks', 
+        'bookmarks',
         'bookmarks.templatetags',
         'bookmarks.views',
     ],
@@ -42,6 +52,10 @@ setup(name='django-generic-bookmarks',
         'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
+        'Programming Language :: Python :: 2',
+        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.4',
         'Topic :: Utilities'
     ],
 )

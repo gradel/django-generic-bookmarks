@@ -17,12 +17,12 @@ def _parse_args(parser, token, expression):
         tag_name, arg = token.contents.split(None, 1)
     except ValueError:
         error = u"%r tag requires arguments" % token.contents.split()[0]
-        raise template.TemplateSyntaxError, error
+        raise template.TemplateSyntaxError(error)
     # args validation
     match = expression.match(arg)
     if not match:
         error = u"%r tag has invalid arguments" % tag_name
-        raise template.TemplateSyntaxError, error
+        raise template.TemplateSyntaxError(error)
     return match.groupdict()
 
 

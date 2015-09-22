@@ -1,3 +1,4 @@
+from __future__ import print_function
 from django.utils import unittest
 
 from django.db import models
@@ -7,6 +8,7 @@ from django.test import client
 
 from bookmarks import settings, exceptions, backends, handlers, forms, views
 from bookmarks.models import annotate_bookmarks
+
 
 class RequestFactory(client.RequestFactory):
     def __init__(self, user=None, *args, **kwargs):
@@ -21,7 +23,7 @@ class RequestFactory(client.RequestFactory):
 
 class BookmarkTestModel(models.Model):
     name = models.CharField(max_length=8)
-    
+
     def __unicode__(self):
         return unicode(self.name)
 
@@ -32,7 +34,7 @@ class BookmarkTestMixin(object):
     """
     def create_user(self, username):
         return User.objects.create(username=username)
-    
+
     def create_instance(self, name):
         return BookmarkTestModel.objects.create(name=name)
 
@@ -56,7 +58,7 @@ class BookmarkTestMixin(object):
 
 
 # BACKEND TESTS
-    
+
 class BaseBackendTest(BookmarkTestMixin):
     def test_add_bookmark(self):
         user, instance, key = self.get_user_instance_key('add')
@@ -65,8 +67,8 @@ class BaseBackendTest(BookmarkTestMixin):
 
     def test_add_same_bookmark(self):
         user, instance, key = self.get_user_instance_key('addsame')
-        bookmark = self.backend.add(user, instance, key)
-        self.assertRaises(exceptions.AlreadyExists, 
+        self.backend.add(user, instance, key)
+        self.assertRaises(exceptions.AlreadyExists,
             self.backend.add, user, instance, key)
 
     def test_bookmark_exists(self):
@@ -83,7 +85,7 @@ class BaseBackendTest(BookmarkTestMixin):
 
     def test_remove_missing_bookmark(self):
         user, instance, key = self.get_user_instance_key('missing')
-        self.assertRaises(exceptions.DoesNotExist, 
+        self.assertRaises(exceptions.DoesNotExist,
             self.backend.remove, user, instance, key)
 
     def test_filter_bookmarks(self):
@@ -100,26 +102,26 @@ class BaseBackendTest(BookmarkTestMixin):
         bookmark5 = self.backend.add(user2, instance1, key2)
 
         bookmarks_user1 = list(self.backend.filter(user=user1))
-        bookmarks_user1_reversed = list(self.backend.filter(user=user1, 
+        bookmarks_user1_reversed = list(self.backend.filter(user=user1,
             reversed=True))
         bookmarks_user2_key2 = list(self.backend.filter(user=user2, key=key2))
         bookmarks_instance1 = list(self.backend.filter(instance=instance1))
         bookmarks_instance1_reversed = list(self.backend.filter(
             instance=instance1, reversed=True))
-        bookmarks_instance2_user1 = list(self.backend.filter(instance=instance2, 
+        bookmarks_instance2_user1 = list(self.backend.filter(instance=instance2,
             user=user1))
         bookmarks_instance1_user2_key1 = list(self.backend.filter(
             instance=instance1, user=user2, key=key1))
         bookmarks_instance1_user1_key2 = list(self.backend.filter(
             instance=instance1, user=user1, key=key2))
         bookmarks_model = list(self.backend.filter(model=BookmarkTestModel))
-        
+
         self.assertEqual(bookmarks_user1, [bookmark1, bookmark3, bookmark4])
-        self.assertEqual(bookmarks_user1_reversed, 
+        self.assertEqual(bookmarks_user1_reversed,
             [bookmark4, bookmark3, bookmark1])
         self.assertEqual(bookmarks_user2_key2, [bookmark5])
         self.assertEqual(bookmarks_instance1, [bookmark1, bookmark2, bookmark5])
-        self.assertEqual(bookmarks_instance1_reversed, 
+        self.assertEqual(bookmarks_instance1_reversed,
             [bookmark5, bookmark2, bookmark1])
         self.assertEqual(bookmarks_instance2_user1, [bookmark3, bookmark4])
         self.assertEqual(bookmarks_instance1_user2_key1, [bookmark2])
@@ -133,11 +135,11 @@ class BaseBackendTest(BookmarkTestMixin):
         instance2 = self.create_instance('instance_get_2')
         key = 'key_get'
 
-        bookmark1 = self.backend.add(user1, instance1, key)
+        self.backend.add(user1, instance1, key)
         bookmark2 = self.backend.add(user2, instance1, key)
 
         self.assertEqual(self.backend.get(user2, instance1, key), bookmark2)
-        self.assertRaises(exceptions.DoesNotExist, 
+        self.assertRaises(exceptions.DoesNotExist,
             self.backend.get, user1, instance2, key)
 
     def test_remove_all_bookmarks_for_instance(self):
@@ -166,7 +168,7 @@ class BaseBackendTest(BookmarkTestMixin):
         bookmarks = list(self.backend.filter(user=user))
         self.assertTrue(isinstance(bookmarks[0], self.backend.get_model()))
 
-    
+
 class DefaultBackendTestCase(unittest.TestCase, BaseBackendTest):
     def setUp(self):
         self.backend = backends.ModelBackend()
@@ -178,18 +180,17 @@ class DefaultBackendTestCase(unittest.TestCase, BaseBackendTest):
 try:
     mongo_backend = backends.MongoBackend()
 except ImportError:
-    print "Skipping mongo backend tests: you must pip install mongoengine."
+    print("Skipping mongo backend tests: you must pip install mongoengine.")
 except exceptions.MongodbConnectionError:
-    print "Skipping mongo backend tests: unable to connect to mongodb."
+    print("Skipping mongo backend tests: unable to connect to mongodb.")
 else:
-    class MongoBackendTestCase(unittest.TestCase, BaseBackendTest):            
+    class MongoBackendTestCase(unittest.TestCase, BaseBackendTest):
         def setUp(self):
             self.backend = mongo_backend
 
         def tearDown(self):
             self.clean()
             self.backend.db.drop_collection('bookmark')
-
 
         def test_filter_bookmarks(self):
             pass
@@ -217,16 +218,16 @@ class RegistryTestCase(unittest.TestCase, BookmarkTestMixin):
 
         handler = self.library.get_handler(model)
         self.assertTrue(isinstance(handler, handlers.Handler))
-        
+
         self.assertRaises(exceptions.AlreadyHandled, self.library.register,
             model)
-        
+
         self.library.unregister(type(instance))
         self.assertRaises(exceptions.NotHandled, self.library.unregister,
             model)
 
         self.assertEqual(self.library.get_handler(User), None)
-        
+
         custom_handler = self._get_handler()
         key = 'custom'
         self.library.register([User, model], custom_handler, default_key=key)
@@ -252,7 +253,7 @@ class FormTestCase(unittest.TestCase, BookmarkTestMixin):
 
     def _get_initial(self, instance, key):
         return {
-            'model':str(instance._meta),
+            'model': str(instance._meta),
             'object_id': str(instance.pk),
             'key': key,
         }
@@ -274,7 +275,7 @@ class FormTestCase(unittest.TestCase, BookmarkTestMixin):
         self.assertFalse(form.is_valid())
 
     def test_instance(self):
-        initial =  self._get_initial(self.instance, self.key)
+        initial = self._get_initial(self.instance, self.key)
         form = self.form_class(self.request, self.backend, data=initial)
         self.assertEqual(self.instance, form.instance())
 
@@ -282,8 +283,8 @@ class FormTestCase(unittest.TestCase, BookmarkTestMixin):
         initial = self._get_initial(self.bookmark.content_object, self.key)
         form = self.form_class(self.request, self.backend, data=initial)
         self.assertTrue(form.bookmark_exists())
-        
-        initial =  self._get_initial(self.instance, self.key)
+
+        initial = self._get_initial(self.instance, self.key)
         form = self.form_class(self.request, self.backend, data=initial)
         self.assertFalse(form.bookmark_exists())
 
@@ -307,7 +308,7 @@ class FormTestCase(unittest.TestCase, BookmarkTestMixin):
         initial = self._get_initial(self.instance, self.key)
         form = self.form_class(self.get_request(), self.backend, data=initial)
         form.is_valid()
-        self.assertRaises(ValueError, form.bookmark_exists)        
+        self.assertRaises(ValueError, form.bookmark_exists)
 
 
 # TEMPLATETAGS TESTS
@@ -333,7 +334,7 @@ class TemplatetagsTestCase(unittest.TestCase, BookmarkTestMixin):
         context = Context(context_dict.copy())
         if request is not None:
             context['request'] = request
-        html =  Template(template).render(context)
+        html = Template(template).render(context)
         return html.strip(), context
 
     def test_bookmark(self):
@@ -354,7 +355,7 @@ class TemplatetagsTestCase(unittest.TestCase, BookmarkTestMixin):
         template2 = u"""
             {% load bookmarks_tags %}
             {% bookmark for instances.0 as mybookmark %}
-        """ 
+        """
         context_dict = {
             'instances': [self.bookmark2.content_object],
         }
@@ -372,7 +373,7 @@ class TemplatetagsTestCase(unittest.TestCase, BookmarkTestMixin):
             'instance': self.bookmark1.content_object,
             'mykey': self.bookmark1.key
         }
-        html, context = self.render(template, context_dict, 
+        html, context = self.render(template, context_dict,
             self.request_anonymous)
         self.assertIsNone(context.get('mybookmark'))
         # retreiving failure because the instance is not bookmarkable
@@ -384,7 +385,6 @@ class TemplatetagsTestCase(unittest.TestCase, BookmarkTestMixin):
         html, context = self.render(template, context_dict, self.request)
         self.assertIsNone(context.get('mybookmark'))
         handlers.library.register(BookmarkTestModel)
-
 
     def test_bookmark_form(self):
         # successfully retreiving a form for existent bokmark
@@ -453,7 +453,7 @@ class TemplatetagsTestCase(unittest.TestCase, BookmarkTestMixin):
             'instance': self.bookmark2.content_object,
             'mykey': settings.DEFAULT_KEY,
         }
-        html, context = self.render(template, context_dict, 
+        html, context = self.render(template, context_dict,
             self.request_anonymous)
         self.assertFalse(html)
         self.assertIsNone(context.get('myform'))
@@ -626,7 +626,7 @@ class BookmarkViewTestCase(unittest.TestCase, BookmarkTestMixin):
 
     def get_data(self, instance, key=None):
         return {
-            'model':str(instance._meta),
+            'model': str(instance._meta),
             'object_id': str(instance.pk),
             'key': key or self.handler.default_key,
         }
@@ -638,7 +638,7 @@ class BookmarkViewTestCase(unittest.TestCase, BookmarkTestMixin):
         user = self.create_user('view_bookmark_success')
         instance = self.create_instance('view_bookmark_success')
         http_referer = '/bookmark/success/'
-        request = self.get_post_request(user, self.get_data(instance), 
+        request = self.get_post_request(user, self.get_data(instance),
             HTTP_REFERER=http_referer)
         # adding bookmark
         response = views.bookmark(request)
@@ -658,7 +658,7 @@ class BookmarkViewTestCase(unittest.TestCase, BookmarkTestMixin):
         request = self.get_request(user)
         response = views.bookmark(request)
         self.assertEqual(response.status_code, 403)
-    
+
     def test_fail_invalid_model(self):
         user = self.create_user('view_bookmark_success')
         instance = self.create_instance('view_bookmark_success')
@@ -710,7 +710,7 @@ class BookmarkViewTestCase(unittest.TestCase, BookmarkTestMixin):
 try:
     from bookmarks.views.generic import BookmarksForView, BookmarksByView
 except ImportError:
-    print "Skipping class based views tests: unsupported by current Django version."
+    print("Skipping class based views tests: unsupported by current Django version.")
 else:
 
     class ClassBasedViewTextMixin(BookmarkTestMixin):
@@ -733,10 +733,9 @@ else:
 
         def get_data_from_response(self, response):
             return (
-                response.context_data['object'], 
+                response.context_data['object'],
                 list(response.context_data['bookmarks'])
             )
-
 
     class BookmarksForViewTestCase(unittest.TestCase, ClassBasedViewTextMixin):
         view_class = BookmarksForView
@@ -753,7 +752,7 @@ else:
             request = self.get_request()
             response = view(request, pk=self.instance1.id)
             self.assertEqual(response.status_code, 200)
-            self.assertEqual(response.template_name, 
+            self.assertEqual(response.template_name,
                 ['bookmarks/bookmarktestmodel_bookmarks.html'])
 
             instance, bookmarks = self.get_data_from_response(response)
@@ -769,7 +768,7 @@ else:
             request = self.get_request()
             response = view(request, pk=self.instance1.id)
             self.assertEqual(response.status_code, 200)
-            self.assertEqual(response.template_name, 
+            self.assertEqual(response.template_name,
                 ['test.html', 'bookmarks/bookmarktestmodel_bookmarks.html'])
 
             instance, bookmarks = self.get_data_from_response(response)
@@ -800,7 +799,6 @@ else:
             self.assertEqual(instance, self.instance2)
             self.assertFalse(bookmarks)
 
-
     class BookmarksByViewTestCase(unittest.TestCase, ClassBasedViewTextMixin):
         view_class = BookmarksByView
 
@@ -816,7 +814,7 @@ else:
             request = self.get_request()
             response = view(request, pk=self.user1.id)
             self.assertEqual(response.status_code, 200)
-            self.assertEqual(response.template_name, 
+            self.assertEqual(response.template_name,
                 ['auth/user_bookmarks.html'])
 
             instance, bookmarks = self.get_data_from_response(response)
@@ -832,7 +830,7 @@ else:
             request = self.get_request()
             response = view(request, pk=self.user1.id)
             self.assertEqual(response.status_code, 200)
-            self.assertEqual(response.template_name, 
+            self.assertEqual(response.template_name,
                 ['test.html', 'auth/user_bookmarks.html'])
 
             instance, bookmarks = self.get_data_from_response(response)
@@ -901,7 +899,7 @@ class ModelsTestCase(unittest.TestCase, BookmarkTestMixin):
         self.assertAttrIndexTrue(objects, [1, 3])
 
     def test_key2_queryset(self):
-        objects = self.annotate(BookmarkTestModel.objects.all(), self.key2, 
+        objects = self.annotate(BookmarkTestModel.objects.all(), self.key2,
             self.user1)
         self.assertAttrIndexTrue(objects, [1, 2])
 
