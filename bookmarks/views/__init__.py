@@ -1,4 +1,4 @@
-from django.db.models import get_model
+from django.apps import apps as django_apps
 from django.shortcuts import render_to_response
 from django.template import RequestContext
 from django import http
@@ -22,7 +22,7 @@ def bookmark(request):
 
         # getting handler
         model_name = request.POST.get('model', u'')
-        model = get_model(*model_name.split('.'))
+        model = django_apps.get_model(*model_name.split('.'))
         if model is None:
             # invalid model -> bad request
             return http.HttpResponseBadRequest(ERRORS['model'])
@@ -87,7 +87,7 @@ def ajax_form(request, extra_context=None,
     if request.is_ajax():
         # getting handler
         model_name = request.GET.get('model', u'')
-        model = get_model(*model_name.split('.'))
+        model = django_apps.get_model(*model_name.split('.'))
         if model is None:
             # invalid model -> bad request
             return http.HttpResponseBadRequest(ERRORS['model'])

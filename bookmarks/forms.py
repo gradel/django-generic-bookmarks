@@ -1,5 +1,5 @@
+from django.apps import apps
 from django import forms
-from django.db.models import get_model
 
 
 class BookmarkForm(forms.Form):
@@ -62,7 +62,7 @@ class BookmarkForm(forms.Form):
         object_id = self.cleaned_data.get('object_id')
         if model_name and object_id:
             # getting model
-            model = get_model(*model_name.split('.'))
+            model = apps.get_model(*model_name.split('.'))
             if model is None:
                 raise forms.ValidationError(u'Invalid model.')
             # getting instance
